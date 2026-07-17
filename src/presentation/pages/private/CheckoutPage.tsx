@@ -7,10 +7,16 @@ import type { MetodoPago } from '../../../domain/entities/MetodoPago';
 import type { Servicio } from '../../../domain/entities/Servicio';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Factura } from '../../../domain/entities/Factura';
+import type { Promocion } from '../../../domain/entities/Promocion';
 import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { EstadoPago } from '../../../domain/enums/EstadoPago';
 import { EstadoFactura } from '../../../domain/enums/EstadoFactura';
+import { EstadoVuelo } from '../../../domain/enums/EstadoVuelo';
 import type { TipoEquipaje } from '../../../domain/enums/TipoEquipaje';
+import {
+  promocionVigente,
+  porcentajeDescuento,
+} from '../../../domain/services/promocion.service';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { Button } from '../../components/Button';
@@ -53,8 +59,10 @@ export function CheckoutPage() {
   const [vuelo, setVuelo] = useState<Vuelo | null>(null);
   const [pasajeros, setPasajeros] = useState<Pasajero[]>([]);
   const [asientos, setAsientos] = useState<Asiento[]>([]);
+  const [reservasVuelo, setReservasVuelo] = useState<Reserva[]>([]);
   const [metodos, setMetodos] = useState<MetodoPago[]>([]);
   const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [promociones, setPromociones] = useState<Promocion[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +73,9 @@ export function CheckoutPage() {
   const [serviciosSel, setServiciosSel] = useState<number[]>([]);
   const [equipajeTipo, setEquipajeTipo] = useState<TipoEquipaje | ''>('');
   const [equipajePeso, setEquipajePeso] = useState('');
+  const [codigoPromo, setCodigoPromo] = useState('');
+  const [promoAplicada, setPromoAplicada] = useState<Promocion | null>(null);
+  const [errorPromo, setErrorPromo] = useState<string | null>(null);
 
   // Creación rápida de pasajero
   const [creandoPasajero, setCreandoPasajero] = useState(false);
@@ -93,20 +104,24 @@ export function CheckoutPage() {
     setCargando(true);
     setError(null);
     try {
-      const [vueloData, pasajerosData, asientosData, metodosData, serviciosData] =
+      const [vueloData, pasajerosData, asientosData, reservasData, metodosData, serviciosData, promosData] =
         await Promise.all([
           useCaseFactory.vuelos.getById(id),
           useCaseFactory.pasajeros.getAll(),
           useCaseFactory.asientos.getAll({ vuelo: id }).catch(() => [] as Asiento[]),
+          useCaseFactory.reservas.getAll({ vuelo: id }).catch(() => [] as Reserva[]),
           useCaseFactory.metodosPago.getAll().catch(() => [] as MetodoPago[]),
           useCaseFactory.servicios.getAll().catch(() => [] as Servicio[]),
+          useCaseFactory.getPromocionesUseCase.execute(true).catch(() => [] as Promocion[]),
         ]);
       setVuelo(vueloData);
       setPasajeros(pasajerosData);
       // Se guardan todos (también ocupados): el mapa los pinta bloqueados.
       setAsientos(asientosData.filter((a) => a.vuelo === id));
+      setReservasVuelo(reservasData.filter((r) => r.vuelo === id));
       setMetodos(metodosData.filter((m) => m.activo));
       setServicios(serviciosData);
+      setPromociones(promosData);
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudo cargar la información del vuelo'));
     } finally {
@@ -131,23 +146,60 @@ export function CheckoutPage() {
 
   const pasajeroSeleccionado = misPasajeros.find((p) => String(p.id) === pasajeroId);
 
-  // Desglose en tiempo real: tarifa + servicios seleccionados + impuestos 12%.
+  // Asientos tomados por reservas activas de este vuelo (una cancelada libera el asiento).
+  const codigosOcupados = useMemo(
+    () =>
+      new Set(
+        reservasVuelo
+          .filter((r) => r.estado !== EstadoReserva.Cancelada)
+          .map((r) => r.asiento.toUpperCase()),
+      ),
+    [reservasVuelo],
+  );
+
+  // Desglose en tiempo real: tarifa − descuento + servicios + impuestos 12%.
   const desglose: DesgloseCarrito = useMemo(() => {
     const precioVuelo = Number(vuelo?.precio ?? 0);
+    const descuento = promoAplicada
+      ? round2((precioVuelo * porcentajeDescuento(promoAplicada)) / 100)
+      : 0;
     const totalServicios = round2(
       servicios
         .filter((s) => serviciosSel.includes(s.id))
         .reduce((suma, s) => suma + Number(s.precio), 0),
     );
-    const impuestos = round2((precioVuelo + totalServicios) * TASA_IMPUESTOS);
-    const total = round2(precioVuelo + totalServicios + impuestos);
-    return { precioVuelo, totalServicios, impuestos, total };
-  }, [vuelo, servicios, serviciosSel]);
+    const subtotal = Math.max(0, precioVuelo - descuento) + totalServicios;
+    const impuestos = round2(subtotal * TASA_IMPUESTOS);
+    const total = round2(subtotal + impuestos);
+    return { precioVuelo, descuento, totalServicios, impuestos, total };
+  }, [vuelo, servicios, serviciosSel, promoAplicada]);
 
   function toggleServicio(id: number) {
     setServiciosSel((previos) =>
       previos.includes(id) ? previos.filter((s) => s !== id) : [...previos, id],
     );
+  }
+
+  function aplicarPromo() {
+    const codigo = codigoPromo.trim().toUpperCase();
+    if (!codigo) return;
+    const promo = promociones.find((p) => p.codigo.toUpperCase() === codigo);
+    if (!promo || !promocionVigente(promo)) {
+      setErrorPromo('Código inválido, vencido o inactivo');
+      return;
+    }
+    if (porcentajeDescuento(promo) === 0) {
+      setErrorPromo('Ese código no tiene descuento aplicable');
+      return;
+    }
+    setPromoAplicada(promo);
+    setErrorPromo(null);
+  }
+
+  function quitarPromo() {
+    setPromoAplicada(null);
+    setCodigoPromo('');
+    setErrorPromo(null);
   }
 
   function marcarPaso(clave: string, estado: EstadoPaso, detalle?: string) {
@@ -183,9 +235,19 @@ export function CheckoutPage() {
 
   async function confirmarYPagar() {
     if (!vuelo) return;
+    if (vuelo.estado !== EstadoVuelo.Programado) {
+      setErrorCompra(`Este vuelo está "${vuelo.estado}" y ya no admite reservas.`);
+      return;
+    }
     const codigoAsiento = asientoSel.trim().toUpperCase();
     if (!pasajeroId || !codigoAsiento || !metodoId) {
       setErrorCompra('Selecciona pasajero, asiento y método de pago');
+      return;
+    }
+    if (codigosOcupados.has(codigoAsiento)) {
+      setErrorCompra(
+        `El asiento ${codigoAsiento} ya tiene una reserva activa en este vuelo. Elige otro.`,
+      );
       return;
     }
     const pesoEquipaje = Number(equipajePeso);
@@ -269,8 +331,14 @@ export function CheckoutPage() {
       }
     }
 
-    // Totales reales según lo que sí quedó registrado.
-    const subtotal = Number(vuelo.precio) + serviciosOk.reduce((s, x) => s + Number(x.precio), 0);
+    // Totales reales según lo que sí quedó registrado (mismo cálculo del desglose).
+    const precioVuelo = Number(vuelo.precio);
+    const descuentoReal = promoAplicada
+      ? round2((precioVuelo * porcentajeDescuento(promoAplicada)) / 100)
+      : 0;
+    const subtotal =
+      Math.max(0, precioVuelo - descuentoReal) +
+      serviciosOk.reduce((s, x) => s + Number(x.precio), 0);
     const impuestosReales = round2(subtotal * TASA_IMPUESTOS);
     const totalReal = round2(subtotal + impuestosReales);
 
@@ -414,6 +482,26 @@ export function CheckoutPage() {
     );
   }
 
+  // Un vuelo que ya no está programado (cancelado, abordando, despegado…)
+  // no admite nuevas reservas: se corta antes de mostrar el formulario.
+  if (vuelo.estado !== EstadoVuelo.Programado) {
+    return (
+      <div className="mx-auto max-w-3xl animate-fade-in">
+        <div className="rounded-2xl border border-yellow-500/40 bg-yellow-500/10 p-6">
+          <h1 className="text-xl font-bold text-white">Este vuelo ya no admite reservas</h1>
+          <p className="mt-2 text-sm text-yellow-200">
+            El vuelo {vuelo.origen_detalle?.codigo_iata ?? `#${vuelo.origen}`} →{' '}
+            {vuelo.destino_detalle?.codigo_iata ?? `#${vuelo.destino}`} está en estado «
+            {vuelo.estado}». Solo los vuelos programados se pueden reservar.
+          </p>
+          <Link to="/vuelos" className="mt-4 inline-block">
+            <Button>Buscar otro vuelo</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const sinPasajero = misPasajeros.length === 0;
 
   return (
@@ -526,6 +614,7 @@ export function CheckoutPage() {
           <SeatMapSelector
             capacidad={vuelo.aeronave_detalle?.capacidad ?? CAPACIDAD_FALLBACK}
             asientos={asientos}
+            codigosOcupados={codigosOcupados}
             value={asientoSel}
             onChange={setAsientoSel}
           />
@@ -559,6 +648,12 @@ export function CheckoutPage() {
           onEquipajeTipo={setEquipajeTipo}
           equipajePeso={equipajePeso}
           onEquipajePeso={setEquipajePeso}
+          codigoPromo={codigoPromo}
+          onCodigoPromo={setCodigoPromo}
+          promoAplicada={promoAplicada}
+          errorPromo={errorPromo}
+          onAplicarPromo={aplicarPromo}
+          onQuitarPromo={quitarPromo}
           desglose={desglose}
           comprando={comprando}
           deshabilitado={sinPasajero || metodos.length === 0}

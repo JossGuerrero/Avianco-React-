@@ -4,6 +4,7 @@ import type { MetodoPago } from '../../../domain/entities/MetodoPago';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
 import { EstadoPago } from '../../../domain/enums/EstadoPago';
+import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { DataTable, type Column } from '../../components/DataTable';
@@ -111,6 +112,25 @@ export function PagosPage() {
     const monto = Number(form.monto);
     if (!form.reserva || !form.metodo_pago || Number.isNaN(monto) || monto <= 0) {
       setFormError('Reserva, método de pago y un monto válido son obligatorios');
+      return;
+    }
+    const reservaId = Number(form.reserva);
+    const reservaSel = reservas.find((r) => r.id === reservaId);
+    if (reservaSel?.estado === EstadoReserva.Cancelada) {
+      setFormError('No se puede registrar un pago sobre una reserva cancelada');
+      return;
+    }
+    // Evita el doble cobro: una reserva con pago completado no admite otro.
+    const pagoPrevio = pagos.find(
+      (p) =>
+        p.reserva === reservaId &&
+        p.estado === EstadoPago.Completado &&
+        p.id !== editando?.id,
+    );
+    if (pagoPrevio && form.estado === EstadoPago.Completado) {
+      setFormError(
+        `Esta reserva ya tiene el pago #${pagoPrevio.id} completado por ${formatPrecio(pagoPrevio.monto)}. Reembólsalo antes de registrar otro.`,
+      );
       return;
     }
     setGuardando(true);

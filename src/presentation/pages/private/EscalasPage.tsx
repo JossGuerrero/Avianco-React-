@@ -10,6 +10,8 @@ export function EscalasPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
   const vuelos = useLista(useCaseFactory.vuelos);
   const aeropuertos = useLista(useCaseFactory.aeropuertos);
+  // Copia de las escalas existentes para validar orden duplicado por vuelo.
+  const escalas = useLista(useCaseFactory.escalas);
   const vuelosPorId = useMemo(() => new Map(vuelos.map((v) => [v.id, v])), [vuelos]);
   const aeropuertosPorId = useMemo(
     () => new Map(aeropuertos.map((a) => [a.id, a])),
@@ -62,11 +64,47 @@ export function EscalasPage() {
         { name: 'llegada', label: 'Llegada', tipo: 'datetime-local', requerido: true },
         { name: 'salida', label: 'Salida', tipo: 'datetime-local', requerido: true },
       ]}
-      aInput={(v) => {
+      aInput={(v, editando) => {
+        const vueloId = Number(v.vuelo);
         const orden = Number(v.orden);
-        if (Number.isNaN(orden) || orden <= 0) return 'El orden debe ser un número positivo';
+        if (Number.isNaN(orden) || orden <= 0 || !Number.isInteger(orden)) {
+          return 'El orden debe ser un número entero positivo';
+        }
+
+        const llegada = new Date(String(v.llegada)).getTime();
+        const salida = new Date(String(v.salida)).getTime();
+        // En una escala primero se llega y después se sale.
+        if (!Number.isNaN(llegada) && !Number.isNaN(salida) && salida <= llegada) {
+          return 'La salida de la escala debe ser posterior a su llegada';
+        }
+
+        // La escala debe caer dentro de la ventana del vuelo.
+        const vuelo = vuelosPorId.get(vueloId);
+        if (vuelo) {
+          const salidaVuelo = new Date(vuelo.fecha_salida).getTime();
+          const llegadaVuelo = new Date(vuelo.fecha_llegada).getTime();
+          if (
+            !Number.isNaN(salidaVuelo) &&
+            !Number.isNaN(llegadaVuelo) &&
+            !Number.isNaN(llegada) &&
+            !Number.isNaN(salida) &&
+            (llegada <= salidaVuelo || salida >= llegadaVuelo)
+          ) {
+            return 'La escala debe estar entre la salida y la llegada del vuelo';
+          }
+          if (vuelo.origen === Number(v.aeropuerto) || vuelo.destino === Number(v.aeropuerto)) {
+            return 'El aeropuerto de la escala no puede ser el origen ni el destino del vuelo';
+          }
+        }
+
+        // Orden único dentro del mismo vuelo (sin contar la escala en edición).
+        const duplicada = escalas.some(
+          (e) => e.vuelo === vueloId && e.orden === orden && e.id !== editando?.id,
+        );
+        if (duplicada) return `Ya existe una escala con orden ${orden} en este vuelo`;
+
         return {
-          vuelo: Number(v.vuelo),
+          vuelo: vueloId,
           aeropuerto: Number(v.aeropuerto),
           orden,
           llegada: String(v.llegada),

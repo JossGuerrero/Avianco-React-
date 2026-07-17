@@ -53,16 +53,31 @@ export class CambiarEstadoVueloUseCase {
 
     let notificados = 0;
     if (nuevoEstado === EstadoVuelo.Abordando) {
-      notificados = await this.notificarEmbarque(vuelo, ruta);
+      notificados = await this.notificarPasajeros(vuelo, {
+        tipo: TipoNotificacion.Embarque,
+        titulo: `Tu vuelo ${ruta} está abordando`,
+        mensaje: `El vuelo #${vuelo.id} (${ruta}) inició el abordaje. Dirígete a tu puerta de embarque.`,
+      });
+    } else if (nuevoEstado === EstadoVuelo.Cancelado) {
+      // Una cancelación jamás debe ser silenciosa para quien tiene reserva.
+      notificados = await this.notificarPasajeros(vuelo, {
+        tipo: TipoNotificacion.Cancelado,
+        titulo: `Tu vuelo ${ruta} fue cancelado`,
+        mensaje: `Lamentamos informarte que el vuelo #${vuelo.id} (${ruta}) fue cancelado. Contáctanos para reprogramar o solicitar reembolso.`,
+      });
     }
 
     return { vuelo: actualizado, notificados };
   }
 
-  private async notificarEmbarque(vuelo: Vuelo, ruta: string): Promise<number> {
-    const [reservas, pasajeros] = await Promise.all([
+  private async notificarPasajeros(
+    vuelo: Vuelo,
+    aviso: { tipo: TipoNotificacion; titulo: string; mensaje: string },
+  ): Promise<number> {
+    const [reservas, pasajeros, existentes] = await Promise.all([
       this.deps.reservas.getAll({ vuelo: vuelo.id }),
       this.deps.pasajeros.getAll(),
+      this.deps.notificaciones.getAll().catch(() => []),
     ]);
 
     const usuarioPorPasajero = new Map(pasajeros.map((p) => [p.id, p.usuario]));
@@ -75,13 +90,23 @@ export class CambiarEstadoVueloUseCase {
       if (usuario) usuarios.add(usuario);
     }
 
+    // Anti-duplicados: si staff repite el cambio de estado por error, no se
+    // vuelve a notificar a quien ya recibió este mismo aviso de este vuelo.
+    const marcaVuelo = `#${vuelo.id} `;
+    const yaAvisados = new Set(
+      existentes
+        .filter((n) => n.tipo === aviso.tipo && n.mensaje.includes(marcaVuelo))
+        .map((n) => n.usuario),
+    );
+
+    const pendientes = [...usuarios].filter((usuario) => !yaAvisados.has(usuario));
     const resultados = await Promise.allSettled(
-      [...usuarios].map((usuario) =>
+      pendientes.map((usuario) =>
         this.deps.notificaciones.create({
           usuario,
-          tipo: TipoNotificacion.Embarque,
-          titulo: `Tu vuelo ${ruta} está abordando`,
-          mensaje: `El vuelo #${vuelo.id} (${ruta}) inició el abordaje. Dirígete a tu puerta de embarque.`,
+          tipo: aviso.tipo,
+          titulo: aviso.titulo,
+          mensaje: aviso.mensaje,
           leida: false,
         }),
       ),

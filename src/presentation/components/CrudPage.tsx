@@ -29,7 +29,9 @@ interface CrudPageProps<T extends { id: number }, TInput> {
   campos: CampoForm[];
   // Convierte los valores del formulario al input de la API.
   // Si devuelve un string, se muestra como error de validación.
-  aInput: (values: FormValues) => TInput | string;
+  // Recibe la fila en edición (o null al crear) para validar duplicados
+  // sin marcar como conflicto al propio registro.
+  aInput: (values: FormValues, editando: T | null) => TInput | string;
   puedeMutar: boolean;
   permitirEditar?: boolean;
   descripcion?: string;
@@ -121,7 +123,7 @@ export function CrudPage<T extends { id: number }, TInput>({
         }
       }
     }
-    const input = aInput(valores);
+    const input = aInput(valores, editando);
     if (typeof input === 'string') {
       setFormError(input);
       return;

@@ -6,6 +6,7 @@ import type { Servicio } from '../../../domain/entities/Servicio';
 import type { ReservaServicio } from '../../../domain/entities/ReservaServicio';
 import type { Equipaje } from '../../../domain/entities/Equipaje';
 import { EstadoFactura } from '../../../domain/enums/EstadoFactura';
+import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { DataTable, type Column } from '../../components/DataTable';
@@ -116,6 +117,29 @@ export function FacturasPage() {
     const impuestos = Number(form.impuestos);
     if (!form.reserva || Number.isNaN(total) || total <= 0 || Number.isNaN(impuestos)) {
       setFormError('Reserva, total e impuestos válidos son obligatorios');
+      return;
+    }
+    if (impuestos >= total) {
+      setFormError('Los impuestos no pueden ser mayores o iguales al total');
+      return;
+    }
+    const reservaId = Number(form.reserva);
+    const reservaSel = reservas.find((r) => r.id === reservaId);
+    if (!editando && reservaSel?.estado === EstadoReserva.Cancelada) {
+      setFormError('No se puede emitir una factura sobre una reserva cancelada');
+      return;
+    }
+    // Una reserva no debe tener dos facturas vivas (la anulada no cuenta).
+    const facturaPrevia = facturas.find(
+      (f) =>
+        f.reserva === reservaId &&
+        f.estado !== EstadoFactura.Anulada &&
+        f.id !== editando?.id,
+    );
+    if (facturaPrevia) {
+      setFormError(
+        `Esta reserva ya tiene la factura #${facturaPrevia.id} (${facturaPrevia.estado}). Anúlala antes de emitir otra.`,
+      );
       return;
     }
     setGuardando(true);

@@ -6,6 +6,9 @@ interface SeatMapSelectorProps {
   capacidad: number;
   // Asientos reales del vuelo (GET /asientos/?vuelo={id}); puede venir vacío.
   asientos: Asiento[];
+  // Códigos ya tomados por reservas activas (confirmada/embarcado): se pintan
+  // ocupados aunque el catálogo de asientos diga disponible o no exista.
+  codigosOcupados?: Set<string>;
   value: string;
   onChange: (codigo: string) => void;
 }
@@ -51,13 +54,26 @@ function agruparAsientosReales(asientos: Asiento[]): SeatCell[][] {
     );
 }
 
-export function SeatMapSelector({ capacidad, asientos, value, onChange }: SeatMapSelectorProps) {
+export function SeatMapSelector({
+  capacidad,
+  asientos,
+  codigosOcupados,
+  value,
+  onChange,
+}: SeatMapSelectorProps) {
   const esMapaReal = asientos.length > 0;
 
-  const filas = useMemo(
-    () => (esMapaReal ? agruparAsientosReales(asientos) : generarMapaTemporal(capacidad)),
-    [esMapaReal, asientos, capacidad],
-  );
+  const filas = useMemo(() => {
+    const base = esMapaReal ? agruparAsientosReales(asientos) : generarMapaTemporal(capacidad);
+    if (!codigosOcupados || codigosOcupados.size === 0) return base;
+    return base.map((fila) =>
+      fila.map((celda) =>
+        codigosOcupados.has(celda.codigo.toUpperCase())
+          ? { ...celda, disponible: false }
+          : celda,
+      ),
+    );
+  }, [esMapaReal, asientos, capacidad, codigosOcupados]);
 
   return (
     <div>

@@ -94,8 +94,8 @@ export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloD
         nuevoEstado,
       );
       const aviso =
-        nuevoEstado === EstadoVuelo.Abordando
-          ? ` Se notificó a ${notificados} pasajero${notificados === 1 ? '' : 's'} con reserva confirmada.`
+        nuevoEstado === EstadoVuelo.Abordando || nuevoEstado === EstadoVuelo.Cancelado
+          ? ` Se notificó a ${notificados} pasajero${notificados === 1 ? '' : 's'} con reserva confirmada (sin duplicar avisos previos).`
           : '';
       setMsgCambio({ tipo: 'ok', texto: `Estado actualizado a "${nuevoEstado}".${aviso}` });
       setNuevoEstado('');
@@ -221,8 +221,8 @@ export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloD
             Cambiar estado del vuelo
           </h3>
           <p className="mt-1 text-xs text-gray-400">
-            Al pasar a «abordando» se notifica automáticamente a los pasajeros con reserva
-            confirmada.
+            Al pasar a «abordando» o «cancelado» se notifica automáticamente a los pasajeros con
+            reserva confirmada.
           </p>
           <div className="mt-3 flex items-end gap-3">
             <div className="flex-1">

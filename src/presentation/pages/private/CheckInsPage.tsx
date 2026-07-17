@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { CrudPage } from '../../components/CrudPage';
 import { Badge } from '../../components/Badge';
+import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
@@ -10,6 +11,8 @@ export function CheckInsPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
   const reservas = useLista(useCaseFactory.reservas);
   const puertas = useLista(useCaseFactory.puertas);
+  // Copia para validar que una reserva no tenga dos check-ins.
+  const checkins = useLista(useCaseFactory.checkins);
   const puertasPorId = useMemo(() => new Map(puertas.map((p) => [p.id, p])), [puertas]);
 
   return (
@@ -57,12 +60,25 @@ export function CheckInsPage() {
         { name: 'tarjeta_embarque', label: 'Tarjeta de embarque', tipo: 'text', placeholder: 'Ej: TKT-00123' },
         { name: 'estado', label: 'Estado', tipo: 'text', requerido: true, placeholder: 'Ej: pendiente' },
       ]}
-      aInput={(v) => ({
-        reserva: Number(v.reserva),
-        puerta: v.puerta ? Number(v.puerta) : null,
-        tarjeta_embarque: String(v.tarjeta_embarque).trim(),
-        estado: String(v.estado).trim(),
-      })}
+      aInput={(v, editando) => {
+        const reservaId = Number(v.reserva);
+        const reserva = reservas.find((r) => r.id === reservaId);
+        if (reserva && reserva.estado === EstadoReserva.Cancelada) {
+          return 'No se puede hacer check-in de una reserva cancelada';
+        }
+        const duplicado = checkins.find(
+          (c) => c.reserva === reservaId && c.id !== editando?.id,
+        );
+        if (duplicado) {
+          return `La reserva #${reservaId} ya tiene el check-in #${duplicado.id}`;
+        }
+        return {
+          reserva: reservaId,
+          puerta: v.puerta ? Number(v.puerta) : null,
+          tarjeta_embarque: String(v.tarjeta_embarque).trim(),
+          estado: String(v.estado).trim(),
+        };
+      }}
     />
   );
 }

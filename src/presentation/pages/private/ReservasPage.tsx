@@ -7,6 +7,8 @@ import type { CheckIn } from '../../../domain/entities/CheckIn';
 import type { Puerta } from '../../../domain/entities/Puerta';
 import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { EstadoVuelo } from '../../../domain/enums/EstadoVuelo';
+import { EstadoFactura } from '../../../domain/enums/EstadoFactura';
+import { EstadoPago } from '../../../domain/enums/EstadoPago';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { DataTable, type Column } from '../../components/DataTable';
@@ -159,6 +161,27 @@ export function ReservasPage() {
       setFormError('Vuelo, pasajero y asiento son obligatorios');
       return;
     }
+    const vueloId = Number(form.vuelo);
+    const codigoAsiento = form.asiento.trim().toUpperCase();
+    const vueloSel = vuelosPorId.get(vueloId);
+    if (!editando && vueloSel && vueloSel.estado !== EstadoVuelo.Programado) {
+      setFormError(`El vuelo está "${vueloSel.estado}" y ya no admite reservas nuevas`);
+      return;
+    }
+    // Mismo asiento, mismo vuelo, reserva activa: duplicado.
+    const asientoTomado = reservas.find(
+      (r) =>
+        r.vuelo === vueloId &&
+        r.asiento.toUpperCase() === codigoAsiento &&
+        r.estado !== EstadoReserva.Cancelada &&
+        r.id !== editando?.id,
+    );
+    if (asientoTomado) {
+      setFormError(
+        `El asiento ${codigoAsiento} ya está tomado por la reserva #${asientoTomado.id} en ese vuelo`,
+      );
+      return;
+    }
     setGuardando(true);
     setFormError(null);
     try {
@@ -208,6 +231,24 @@ export function ReservasPage() {
         }
       } catch {
         // Sin permisos para editar asientos: la reserva igual quedó cancelada.
+      }
+      // Pago y factura no deben quedar "completado"/"pagada" sobre una reserva
+      // cancelada: se marcan reembolsado/anulada (best effort, igual que arriba).
+      try {
+        const [facturas, pagos] = await Promise.all([
+          useCaseFactory.facturas.getAll({ reserva: reserva.id }).catch(() => []),
+          useCaseFactory.pagos.getAll({ reserva: reserva.id }).catch(() => []),
+        ]);
+        await Promise.allSettled([
+          ...facturas
+            .filter((f) => f.reserva === reserva.id && f.estado !== EstadoFactura.Anulada)
+            .map((f) => useCaseFactory.facturas.update(f.id, { estado: EstadoFactura.Anulada })),
+          ...pagos
+            .filter((p) => p.reserva === reserva.id && p.estado === EstadoPago.Completado)
+            .map((p) => useCaseFactory.pagos.update(p.id, { estado: EstadoPago.Reembolsado })),
+        ]);
+      } catch {
+        // Sin permisos sobre pagos/facturas: staff puede regularizarlo después.
       }
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudo cancelar la reserva'));

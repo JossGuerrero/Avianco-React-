@@ -1,6 +1,8 @@
 import type { Vuelo } from '../../domain/entities/Vuelo';
 import type { Servicio } from '../../domain/entities/Servicio';
+import type { Promocion } from '../../domain/entities/Promocion';
 import { TipoEquipaje } from '../../domain/enums/TipoEquipaje';
+import { porcentajeDescuento } from '../../domain/services/promocion.service';
 import { Button } from './Button';
 import { FormInput } from './FormInput';
 import { FormSelect } from './FormSelect';
@@ -8,6 +10,7 @@ import { formatPrecio } from '../utils/formatters';
 
 export interface DesgloseCarrito {
   precioVuelo: number;
+  descuento: number;
   totalServicios: number;
   impuestos: number;
   total: number;
@@ -24,6 +27,12 @@ interface CarritoResumenProps {
   onEquipajeTipo: (tipo: TipoEquipaje | '') => void;
   equipajePeso: string;
   onEquipajePeso: (peso: string) => void;
+  codigoPromo: string;
+  onCodigoPromo: (codigo: string) => void;
+  promoAplicada: Promocion | null;
+  errorPromo: string | null;
+  onAplicarPromo: () => void;
+  onQuitarPromo: () => void;
   desglose: DesgloseCarrito;
   comprando: boolean;
   deshabilitado: boolean;
@@ -43,6 +52,12 @@ export function CarritoResumen({
   onEquipajeTipo,
   equipajePeso,
   onEquipajePeso,
+  codigoPromo,
+  onCodigoPromo,
+  promoAplicada,
+  errorPromo,
+  onAplicarPromo,
+  onQuitarPromo,
   desglose,
   comprando,
   deshabilitado,
@@ -127,12 +142,59 @@ export function CarritoResumen({
         )}
       </div>
 
+      {/* Código promocional */}
+      <div className="mt-4 border-t border-dark-border pt-4">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">
+          Código promocional
+        </h3>
+        {promoAplicada ? (
+          <div className="mt-2 flex items-center justify-between rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm">
+            <span className="font-semibold text-green-300">
+              {promoAplicada.codigo} · −{porcentajeDescuento(promoAplicada)}%
+            </span>
+            <button
+              type="button"
+              onClick={onQuitarPromo}
+              className="text-xs text-gray-400 transition-colors hover:text-white"
+            >
+              Quitar
+            </button>
+          </div>
+        ) : (
+          <div className="mt-2 flex items-end gap-2">
+            <div className="flex-1">
+              <FormInput
+                label="Código"
+                value={codigoPromo}
+                onChange={(e) => onCodigoPromo(e.target.value)}
+                placeholder="Ej: VERANO26"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!codigoPromo.trim()}
+              onClick={onAplicarPromo}
+            >
+              Aplicar
+            </Button>
+          </div>
+        )}
+        {errorPromo && <p className="mt-2 text-xs text-primary-light">{errorPromo}</p>}
+      </div>
+
       {/* Desglose en tiempo real */}
       <dl className="mt-4 space-y-2 border-t border-dark-border pt-4 text-sm">
         <div className="flex justify-between">
           <dt className="text-gray-400">Tarifa del vuelo</dt>
           <dd className="text-white">{formatPrecio(desglose.precioVuelo)}</dd>
         </div>
+        {desglose.descuento > 0 && promoAplicada && (
+          <div className="flex justify-between">
+            <dt className="text-gray-400">Descuento ({promoAplicada.codigo})</dt>
+            <dd className="text-green-300">−{formatPrecio(desglose.descuento)}</dd>
+          </div>
+        )}
         {seleccionados.map((servicio) => (
           <div key={servicio.id} className="flex justify-between">
             <dt className="truncate pr-2 text-gray-400">+ {servicio.nombre}</dt>
