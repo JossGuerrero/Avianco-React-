@@ -21,7 +21,15 @@ export function CheckInsPage() {
       columns={[
         { header: 'ID', render: (c) => <span className="text-gray-400">#{c.id}</span> },
         { header: 'Reserva', render: (c) => `Reserva #${c.reserva}` },
-        { header: 'Puerta', render: (c) => puertasPorId.get(c.puerta)?.codigo ?? `#${c.puerta}` },
+        {
+          header: 'Puerta',
+          render: (c) =>
+            c.puerta == null ? (
+              <span className="text-gray-400">Por asignar</span>
+            ) : (
+              (puertasPorId.get(c.puerta)?.codigo ?? `#${c.puerta}`)
+            ),
+        },
         {
           header: 'Tarjeta de embarque',
           render: (c) => <span className="font-mono text-xs">{c.tarjeta_embarque || '—'}</span>,
@@ -41,8 +49,7 @@ export function CheckInsPage() {
           name: 'puerta',
           label: 'Puerta',
           tipo: 'select',
-          requerido: true,
-          placeholder: 'Selecciona una puerta',
+          placeholder: 'Por asignar',
           options: puertas
             .filter((p) => p.activa)
             .map((p) => ({ value: String(p.id), label: p.codigo })),
@@ -52,7 +59,7 @@ export function CheckInsPage() {
       ]}
       aInput={(v) => ({
         reserva: Number(v.reserva),
-        puerta: Number(v.puerta),
+        puerta: v.puerta ? Number(v.puerta) : null,
         tarjeta_embarque: String(v.tarjeta_embarque).trim(),
         estado: String(v.estado).trim(),
       })}

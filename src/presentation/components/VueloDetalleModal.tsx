@@ -10,23 +10,37 @@ import { useAuthStore } from '../store/authStore';
 import { Modal } from './Modal';
 import { Badge } from './Badge';
 import { Button } from './Button';
+import { FormSelect } from './FormSelect';
 import { Skeleton } from './Skeleton';
-import { formatFecha, formatPrecio } from '../utils/formatters';
+import { formatFecha, formatPrecio, getErrorMessage } from '../utils/formatters';
 import { labelAeropuerto } from '../utils/labels';
 
 interface VueloDetalleModalProps {
   vuelo: Vuelo | null;
   onClose: () => void;
+  // Avisa al padre cuando staff cambia el estado, para refrescar su lista.
+  onVueloActualizado?: (vuelo: Vuelo) => void;
 }
 
-export function VueloDetalleModal({ vuelo, onClose }: VueloDetalleModalProps) {
+export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloDetalleModalProps) {
   const navigate = useNavigate();
-  const token = useAuthStore((state) => state.token);
+  const { token, isStaff } = useAuthStore();
 
   const [escalas, setEscalas] = useState<Escala[]>([]);
   const [estados, setEstados] = useState<EstadoVueloRegistro[]>([]);
   const [aeropuertos, setAeropuertos] = useState<Aeropuerto[]>([]);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
+
+  // Cambio de estado (solo staff)
+  const [nuevoEstado, setNuevoEstado] = useState<EstadoVuelo | ''>('');
+  const [cambiandoEstado, setCambiandoEstado] = useState(false);
+  const [msgCambio, setMsgCambio] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
+
+  useEffect(() => {
+    // Al abrir otro vuelo se reinicia el formulario de estado.
+    setNuevoEstado('');
+    setMsgCambio(null);
+  }, [vuelo?.id]);
 
   useEffect(() => {
     if (!vuelo || !token) return;
@@ -68,6 +82,32 @@ export function VueloDetalleModal({ vuelo, onClose }: VueloDetalleModalProps) {
     if (!vuelo) return;
     onClose();
     navigate(token ? `/checkout/${vuelo.id}` : '/login');
+  }
+
+  async function cambiarEstado() {
+    if (!vuelo || !nuevoEstado || nuevoEstado === vuelo.estado) return;
+    setCambiandoEstado(true);
+    setMsgCambio(null);
+    try {
+      const { vuelo: actualizado, notificados } = await useCaseFactory.cambiarEstadoVuelo.execute(
+        vuelo,
+        nuevoEstado,
+      );
+      const aviso =
+        nuevoEstado === EstadoVuelo.Abordando
+          ? ` Se notificó a ${notificados} pasajero${notificados === 1 ? '' : 's'} con reserva confirmada.`
+          : '';
+      setMsgCambio({ tipo: 'ok', texto: `Estado actualizado a "${nuevoEstado}".${aviso}` });
+      setNuevoEstado('');
+      onVueloActualizado?.(actualizado);
+    } catch (e) {
+      setMsgCambio({
+        tipo: 'error',
+        texto: getErrorMessage(e, 'No se pudo cambiar el estado del vuelo'),
+      });
+    } finally {
+      setCambiandoEstado(false);
+    }
   }
 
   return (
@@ -172,6 +212,50 @@ export function VueloDetalleModal({ vuelo, onClose }: VueloDetalleModalProps) {
             </ol>
           )}
         </>
+      )}
+
+      {/* Panel staff: cambio de estado con notificaciones automáticas */}
+      {isStaff && (
+        <div className="mt-5 rounded-xl border border-dark-border bg-dark p-4">
+          <h3 className="text-sm font-bold uppercase tracking-wide text-gray-400">
+            Cambiar estado del vuelo
+          </h3>
+          <p className="mt-1 text-xs text-gray-400">
+            Al pasar a «abordando» se notifica automáticamente a los pasajeros con reserva
+            confirmada.
+          </p>
+          <div className="mt-3 flex items-end gap-3">
+            <div className="flex-1">
+              <FormSelect
+                label="Nuevo estado"
+                value={nuevoEstado}
+                onChange={(e) => setNuevoEstado(e.target.value as EstadoVuelo | '')}
+                placeholder="Selecciona un estado"
+                options={Object.values(EstadoVuelo)
+                  .filter((estado) => estado !== vuelo.estado)
+                  .map((estado) => ({ value: estado, label: estado }))}
+              />
+            </div>
+            <Button
+              isLoading={cambiandoEstado}
+              disabled={!nuevoEstado}
+              onClick={cambiarEstado}
+            >
+              Actualizar
+            </Button>
+          </div>
+          {msgCambio && (
+            <p
+              className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+                msgCambio.tipo === 'ok'
+                  ? 'border-green-500/40 bg-green-500/10 text-green-300'
+                  : 'border-primary/40 bg-primary/10 text-primary-light'
+              }`}
+            >
+              {msgCambio.texto}
+            </p>
+          )}
+        </div>
       )}
 
       <div className="mt-6 flex justify-end gap-3">

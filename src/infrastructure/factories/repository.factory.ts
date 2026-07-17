@@ -43,6 +43,7 @@ import { LoginUseCase } from '../../application/use-cases/auth/LoginUseCase';
 import { RegisterUseCase } from '../../application/use-cases/auth/RegisterUseCase';
 import { LogoutUseCase } from '../../application/use-cases/auth/LogoutUseCase';
 import { GetVuelosUseCase } from '../../application/use-cases/vuelos/GetVuelosUseCase';
+import { CambiarEstadoVueloUseCase } from '../../application/use-cases/vuelos/CambiarEstadoVueloUseCase';
 import { GetPromocionesUseCase } from '../../application/use-cases/promociones/GetPromocionesUseCase';
 import { ReservaUseCases } from '../../application/use-cases/reservas/ReservaUseCases';
 import { CrudUseCases } from '../../application/use-cases/common/CrudUseCases';
@@ -57,6 +58,13 @@ function crud<T, TInput>(endpoint: string): CrudUseCases<T, TInput> {
   return new CrudUseCases<T, TInput>(new AxiosCrudRepository<T, TInput>(endpoint));
 }
 
+// Instancias compartidas entre la factory y los casos de uso compuestos.
+const vuelosUseCases = new CrudUseCases(vueloRepository);
+const reservasUseCases = new ReservaUseCases(new AxiosReservaRepository());
+const pasajerosUseCases = new CrudUseCases<Pasajero, PasajeroInput>(new AxiosPasajeroRepository());
+const notificacionesUseCases = crud<Notificacion, NotificacionInput>('/notificaciones/');
+const estadosVueloUseCases = crud<EstadoVueloRegistro, EstadoVueloRegistroInput>('/estados-vuelo/');
+
 export const useCaseFactory = {
   // Auth
   loginUseCase: new LoginUseCase(authRepository),
@@ -66,11 +74,18 @@ export const useCaseFactory = {
   // Vuelos y promociones
   getVuelosUseCase: new GetVuelosUseCase(vueloRepository),
   getPromocionesUseCase: new GetPromocionesUseCase(promocionRepository),
-  vuelos: new CrudUseCases(vueloRepository),
+  vuelos: vuelosUseCases,
+  cambiarEstadoVuelo: new CambiarEstadoVueloUseCase({
+    vuelos: vuelosUseCases,
+    reservas: reservasUseCases,
+    pasajeros: pasajerosUseCases,
+    notificaciones: notificacionesUseCases,
+    estadosVuelo: estadosVueloUseCases,
+  }),
 
   // Módulos principales
-  reservas: new ReservaUseCases(new AxiosReservaRepository()),
-  pasajeros: new CrudUseCases<Pasajero, PasajeroInput>(new AxiosPasajeroRepository()),
+  reservas: reservasUseCases,
+  pasajeros: pasajerosUseCases,
   aeropuertos: new CrudUseCases<Aeropuerto, AeropuertoInput>(new AxiosAeropuertoRepository()),
   aeronaves: new CrudUseCases<Aeronave, AeronaveInput>(new AxiosAeronaveRepository()),
   tripulacion: new CrudUseCases<Tripulante, TripulanteInput>(new AxiosTripulacionRepository()),
@@ -95,6 +110,6 @@ export const useCaseFactory = {
   equipajes: crud<Equipaje, EquipajeInput>('/equipajes/'),
   asignaciones: crud<AsignacionTripulacion, AsignacionTripulacionInput>('/asignaciones/'),
   escalas: crud<Escala, EscalaInput>('/escalas/'),
-  estadosVuelo: crud<EstadoVueloRegistro, EstadoVueloRegistroInput>('/estados-vuelo/'),
-  notificaciones: crud<Notificacion, NotificacionInput>('/notificaciones/'),
+  estadosVuelo: estadosVueloUseCases,
+  notificaciones: notificacionesUseCases,
 } as const;

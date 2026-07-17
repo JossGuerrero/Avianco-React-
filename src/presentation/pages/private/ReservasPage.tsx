@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Vuelo } from '../../../domain/entities/Vuelo';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
+import type { CheckIn } from '../../../domain/entities/CheckIn';
+import type { Puerta } from '../../../domain/entities/Puerta';
 import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
+import { EstadoVuelo } from '../../../domain/enums/EstadoVuelo';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { DataTable, type Column } from '../../components/DataTable';
@@ -34,6 +37,9 @@ export function ReservasPage() {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [vuelos, setVuelos] = useState<Vuelo[]>([]);
   const [pasajeros, setPasajeros] = useState<Pasajero[]>([]);
+  const [checkins, setCheckins] = useState<CheckIn[]>([]);
+  const [puertas, setPuertas] = useState<Puerta[]>([]);
+  const [haciendoCheckin, setHaciendoCheckin] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -49,11 +55,14 @@ export function ReservasPage() {
     setLoading(true);
     setError(null);
     try {
-      const [reservasPage, vuelosData, pasajerosData] = await Promise.all([
-        useCaseFactory.reservas.getPage({ page }),
-        useCaseFactory.getVuelosUseCase.execute(),
-        useCaseFactory.pasajeros.getAll(),
-      ]);
+      const [reservasPage, vuelosData, pasajerosData, checkinsData, puertasData] =
+        await Promise.all([
+          useCaseFactory.reservas.getPage({ page }),
+          useCaseFactory.getVuelosUseCase.execute(),
+          useCaseFactory.pasajeros.getAll(),
+          useCaseFactory.checkins.getAll().catch(() => [] as CheckIn[]),
+          useCaseFactory.puertas.getAll().catch(() => [] as Puerta[]),
+        ]);
       setReservas(reservasPage.items);
       setPaginacion({
         hasNext: reservasPage.hasNext,
@@ -62,6 +71,8 @@ export function ReservasPage() {
       });
       setVuelos(vuelosData);
       setPasajeros(pasajerosData);
+      setCheckins(checkinsData);
+      setPuertas(puertasData);
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudieron cargar las reservas'));
     } finally {
@@ -87,6 +98,24 @@ export function ReservasPage() {
 
   const vuelosPorId = useMemo(() => new Map(vuelos.map((v) => [v.id, v])), [vuelos]);
   const pasajerosPorId = useMemo(() => new Map(pasajeros.map((p) => [p.id, p])), [pasajeros]);
+  const puertasPorId = useMemo(() => new Map(puertas.map((p) => [p.id, p])), [puertas]);
+  const checkinPorReserva = useMemo(
+    () => new Map(checkins.map((c) => [c.reserva, c])),
+    [checkins],
+  );
+
+  // Check-in disponible: reserva confirmada de un vuelo que aún no salió
+  // (programado o abordando).
+  function puedeHacerCheckin(reserva: Reserva): boolean {
+    if (reserva.estado !== EstadoReserva.Confirmada) return false;
+    const vuelo = vuelosPorId.get(reserva.vuelo);
+    if (!vuelo) return false;
+    if (vuelo.estado !== EstadoVuelo.Programado && vuelo.estado !== EstadoVuelo.Abordando) {
+      return false;
+    }
+    const salida = new Date(vuelo.fecha_salida).getTime();
+    return Number.isNaN(salida) || salida > Date.now();
+  }
 
   function labelVuelo(id: number): string {
     const vuelo = vuelosPorId.get(id);
@@ -154,12 +183,53 @@ export function ReservasPage() {
   }
 
   async function cancelarReserva(reserva: Reserva) {
-    if (!window.confirm(`¿Cancelar la reserva #${reserva.id}?`)) return;
+    if (!window.confirm(`¿Cancelar la reserva #${reserva.id}? Esta acción no se puede deshacer.`))
+      return;
     try {
       await useCaseFactory.reservas.cancelar(reserva.id);
-      await cargar();
+      // El badge cambia de inmediato, sin recargar la tabla.
+      setReservas((previas) =>
+        previas.map((r) =>
+          r.id === reserva.id ? { ...r, estado: EstadoReserva.Cancelada } : r,
+        ),
+      );
+      // Liberar el asiento del catálogo si estaba bloqueado (best effort:
+      // usuarios sin permiso de PATCH sobre asientos no rompen la cancelación).
+      try {
+        const asientosVuelo = await useCaseFactory.asientos.getAll({ vuelo: reserva.vuelo });
+        const asiento = asientosVuelo.find(
+          (a) =>
+            a.vuelo === reserva.vuelo &&
+            a.codigo.toUpperCase() === reserva.asiento.toUpperCase() &&
+            !a.disponible,
+        );
+        if (asiento) {
+          await useCaseFactory.asientos.update(asiento.id, { disponible: true });
+        }
+      } catch {
+        // Sin permisos para editar asientos: la reserva igual quedó cancelada.
+      }
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudo cancelar la reserva'));
+    }
+  }
+
+  async function hacerCheckin(reserva: Reserva) {
+    setHaciendoCheckin(reserva.id);
+    setError(null);
+    try {
+      const creado = await useCaseFactory.checkins.create({
+        reserva: reserva.id,
+        // La puerta la asigna staff después; queda "por asignar".
+        puerta: null,
+        tarjeta_embarque: `BP-${reserva.vuelo}-${reserva.id}-${reserva.asiento}`,
+        estado: 'pendiente',
+      });
+      setCheckins((previos) => [...previos, creado]);
+    } catch (e) {
+      setError(getErrorMessage(e, 'No se pudo hacer el check-in. Intenta de nuevo.'));
+    } finally {
+      setHaciendoCheckin(null);
     }
   }
 
@@ -179,9 +249,44 @@ export function ReservasPage() {
     { header: 'Pasajero', render: (r) => labelPasajero(r.pasajero) },
     { header: 'Asiento', render: (r) => <span className="font-mono">{r.asiento}</span> },
     { header: 'Estado', render: (r) => <Badge estado={r.estado} /> },
+    // Check-in del cliente; staff lo gestiona desde su propio módulo.
+    ...(!isStaff
+      ? [
+          {
+            header: 'Check-in',
+            render: (r: Reserva) => {
+              const checkin = checkinPorReserva.get(r.id);
+              if (checkin) {
+                const puerta =
+                  checkin.puerta == null
+                    ? 'Puerta por asignar'
+                    : `Puerta ${puertasPorId.get(checkin.puerta)?.codigo ?? `#${checkin.puerta}`}`;
+                return (
+                  <div className="flex flex-col gap-1">
+                    <span>
+                      <Badge estado={checkin.estado} />
+                    </span>
+                    <span className="text-xs text-gray-400">{puerta}</span>
+                  </div>
+                );
+              }
+              if (puedeHacerCheckin(r)) {
+                return (
+                  <Button
+                    variant="secondary"
+                    isLoading={haciendoCheckin === r.id}
+                    onClick={() => hacerCheckin(r)}
+                  >
+                    Hacer check-in
+                  </Button>
+                );
+              }
+              return <span className="text-gray-500">—</span>;
+            },
+          },
+        ]
+      : []),
   ];
-
-  const sinPasajero = !isStaff && pasajerosDisponibles.length === 0 && !loading;
 
   return (
     <div>
@@ -190,19 +295,21 @@ export function ReservasPage() {
           {isStaff ? 'Todas las ' : 'Mis '}
           <span className="text-primary">reservas</span>
         </h1>
-        <Button onClick={abrirCrear} disabled={sinPasajero}>
-          + Nueva reserva
-        </Button>
+        {/* La creación manual (sin pago) es gestión administrativa: solo staff.
+            El cliente reserva únicamente por Vuelos → Reservar → checkout. */}
+        {isStaff && <Button onClick={abrirCrear}>+ Nueva reserva</Button>}
       </div>
 
-      {sinPasajero && (
-        <p className="mt-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-300">
-          Para reservar primero necesitas registrar tu perfil de pasajero en{' '}
-          <Link to="/pasajeros" className="font-semibold underline">
-            Pasajeros
+      {!isStaff && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <p className="text-sm text-gray-300">
+            ¿Quieres viajar? Para reservar, ve a <span className="font-semibold text-white">Vuelos</span>,
+            elige tu vuelo y completa el pago en el checkout.
+          </p>
+          <Link to="/vuelos">
+            <Button>Buscar vuelos</Button>
           </Link>
-          .
-        </p>
+        </div>
       )}
 
       {error && (

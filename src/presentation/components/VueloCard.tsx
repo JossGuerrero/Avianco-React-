@@ -1,15 +1,31 @@
 import type { Vuelo } from '../../domain/entities/Vuelo';
 import { formatFecha, formatPrecio } from '../utils/formatters';
 import { Badge } from './Badge';
+import { Button } from './Button';
+
+export interface OcupacionVuelo {
+  confirmadas: number;
+  capacidad: number;
+}
 
 interface VueloCardProps {
   vuelo: Vuelo;
   onClick?: () => void;
+  // Solo staff: reservas confirmadas vs capacidad de la aeronave.
+  ocupacion?: OcupacionVuelo;
+  // Camino único de compra del cliente: lleva directo al checkout.
+  onReservar?: () => void;
 }
 
-export function VueloCard({ vuelo, onClick }: VueloCardProps) {
+export function VueloCard({ vuelo, onClick, ocupacion, onReservar }: VueloCardProps) {
   const origen = vuelo.origen_detalle;
   const destino = vuelo.destino_detalle;
+
+  const porcentaje = ocupacion
+    ? Math.min(100, Math.round((ocupacion.confirmadas / Math.max(1, ocupacion.capacidad)) * 100))
+    : 0;
+  const colorBarra =
+    porcentaje >= 90 ? 'bg-primary' : porcentaje >= 70 ? 'bg-yellow-400' : 'bg-green-400';
 
   return (
     <article
@@ -51,6 +67,36 @@ export function VueloCard({ vuelo, onClick }: VueloCardProps) {
           <p className="text-xs text-gray-400">{vuelo.aeronave_detalle.modelo}</p>
         )}
       </div>
+
+      {onReservar && (
+        <Button
+          className="mt-4 w-full"
+          onClick={(e) => {
+            e.stopPropagation();
+            onReservar();
+          }}
+        >
+          Reservar
+        </Button>
+      )}
+
+      {/* Ocupación (solo staff) */}
+      {ocupacion && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-xs text-gray-400">
+            <span>Ocupación</span>
+            <span className="font-semibold text-gray-300">
+              {ocupacion.confirmadas}/{ocupacion.capacidad} · {porcentaje}%
+            </span>
+          </div>
+          <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-dark">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${colorBarra}`}
+              style={{ width: `${porcentaje}%` }}
+            />
+          </div>
+        </div>
+      )}
     </article>
   );
 }

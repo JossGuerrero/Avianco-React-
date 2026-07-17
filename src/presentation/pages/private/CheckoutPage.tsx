@@ -4,25 +4,35 @@ import type { Vuelo } from '../../../domain/entities/Vuelo';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
 import type { Asiento } from '../../../domain/entities/Asiento';
 import type { MetodoPago } from '../../../domain/entities/MetodoPago';
+import type { Servicio } from '../../../domain/entities/Servicio';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Factura } from '../../../domain/entities/Factura';
 import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { EstadoPago } from '../../../domain/enums/EstadoPago';
 import { EstadoFactura } from '../../../domain/enums/EstadoFactura';
+import type { TipoEquipaje } from '../../../domain/enums/TipoEquipaje';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { Button } from '../../components/Button';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
 import { PaisSelect } from '../../components/PaisSelect';
+import { SeatMapSelector } from '../../components/SeatMapSelector';
+import { CarritoResumen, type DesgloseCarrito } from '../../components/CarritoResumen';
 import { Skeleton } from '../../components/Skeleton';
 import { formatFecha, formatPrecio, getErrorMessage } from '../../utils/formatters';
 
 const TASA_IMPUESTOS = 0.12;
+const CAPACIDAD_FALLBACK = 36;
+
+function round2(valor: number): number {
+  return Math.round(valor * 100) / 100;
+}
 
 type EstadoPaso = 'pendiente' | 'ok' | 'error';
 
 interface Paso {
+  clave: string;
   nombre: string;
   estado: EstadoPaso;
   detalle?: string;
@@ -32,14 +42,9 @@ interface ResultadoCompra {
   reserva: Reserva;
   factura: Factura | null;
   total: number;
+  serviciosAgregados: number;
+  equipajeRegistrado: boolean;
 }
-
-const PASOS_INICIALES: Paso[] = [
-  { nombre: 'Crear reserva', estado: 'pendiente' },
-  { nombre: 'Registrar pago', estado: 'pendiente' },
-  { nombre: 'Emitir factura', estado: 'pendiente' },
-  { nombre: 'Bloquear asiento', estado: 'pendiente' },
-];
 
 export function CheckoutPage() {
   const { vueloId } = useParams();
@@ -49,6 +54,7 @@ export function CheckoutPage() {
   const [pasajeros, setPasajeros] = useState<Pasajero[]>([]);
   const [asientos, setAsientos] = useState<Asiento[]>([]);
   const [metodos, setMetodos] = useState<MetodoPago[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +62,9 @@ export function CheckoutPage() {
   const [pasajeroId, setPasajeroId] = useState('');
   const [asientoSel, setAsientoSel] = useState('');
   const [metodoId, setMetodoId] = useState('');
+  const [serviciosSel, setServiciosSel] = useState<number[]>([]);
+  const [equipajeTipo, setEquipajeTipo] = useState<TipoEquipaje | ''>('');
+  const [equipajePeso, setEquipajePeso] = useState('');
 
   // Creación rápida de pasajero
   const [creandoPasajero, setCreandoPasajero] = useState(false);
@@ -69,7 +78,7 @@ export function CheckoutPage() {
   const [guardandoPasajero, setGuardandoPasajero] = useState(false);
 
   // Proceso de compra
-  const [pasos, setPasos] = useState<Paso[]>(PASOS_INICIALES);
+  const [pasos, setPasos] = useState<Paso[]>([]);
   const [comprando, setComprando] = useState(false);
   const [errorCompra, setErrorCompra] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoCompra | null>(null);
@@ -84,16 +93,20 @@ export function CheckoutPage() {
     setCargando(true);
     setError(null);
     try {
-      const [vueloData, pasajerosData, asientosData, metodosData] = await Promise.all([
-        useCaseFactory.vuelos.getById(id),
-        useCaseFactory.pasajeros.getAll(),
-        useCaseFactory.asientos.getAll({ vuelo: id }).catch(() => [] as Asiento[]),
-        useCaseFactory.metodosPago.getAll().catch(() => [] as MetodoPago[]),
-      ]);
+      const [vueloData, pasajerosData, asientosData, metodosData, serviciosData] =
+        await Promise.all([
+          useCaseFactory.vuelos.getById(id),
+          useCaseFactory.pasajeros.getAll(),
+          useCaseFactory.asientos.getAll({ vuelo: id }).catch(() => [] as Asiento[]),
+          useCaseFactory.metodosPago.getAll().catch(() => [] as MetodoPago[]),
+          useCaseFactory.servicios.getAll().catch(() => [] as Servicio[]),
+        ]);
       setVuelo(vueloData);
       setPasajeros(pasajerosData);
-      setAsientos(asientosData.filter((a) => a.disponible));
+      // Se guardan todos (también ocupados): el mapa los pinta bloqueados.
+      setAsientos(asientosData.filter((a) => a.vuelo === id));
       setMetodos(metodosData.filter((m) => m.activo));
+      setServicios(serviciosData);
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudo cargar la información del vuelo'));
     } finally {
@@ -116,13 +129,30 @@ export function CheckoutPage() {
     }
   }, [misPasajeros, pasajeroId]);
 
-  const precio = Number(vuelo?.precio ?? 0);
-  const impuestos = Math.round(precio * TASA_IMPUESTOS * 100) / 100;
-  const total = Math.round((precio + impuestos) * 100) / 100;
+  const pasajeroSeleccionado = misPasajeros.find((p) => String(p.id) === pasajeroId);
 
-  function marcarPaso(indice: number, estado: EstadoPaso, detalle?: string) {
+  // Desglose en tiempo real: tarifa + servicios seleccionados + impuestos 12%.
+  const desglose: DesgloseCarrito = useMemo(() => {
+    const precioVuelo = Number(vuelo?.precio ?? 0);
+    const totalServicios = round2(
+      servicios
+        .filter((s) => serviciosSel.includes(s.id))
+        .reduce((suma, s) => suma + Number(s.precio), 0),
+    );
+    const impuestos = round2((precioVuelo + totalServicios) * TASA_IMPUESTOS);
+    const total = round2(precioVuelo + totalServicios + impuestos);
+    return { precioVuelo, totalServicios, impuestos, total };
+  }, [vuelo, servicios, serviciosSel]);
+
+  function toggleServicio(id: number) {
+    setServiciosSel((previos) =>
+      previos.includes(id) ? previos.filter((s) => s !== id) : [...previos, id],
+    );
+  }
+
+  function marcarPaso(clave: string, estado: EstadoPaso, detalle?: string) {
     setPasos((previos) =>
-      previos.map((paso, i) => (i === indice ? { ...paso, estado, detalle } : paso)),
+      previos.map((paso) => (paso.clave === clave ? { ...paso, estado, detalle } : paso)),
     );
   }
 
@@ -158,9 +188,27 @@ export function CheckoutPage() {
       setErrorCompra('Selecciona pasajero, asiento y método de pago');
       return;
     }
+    const pesoEquipaje = Number(equipajePeso);
+    if (equipajeTipo && (!equipajePeso || Number.isNaN(pesoEquipaje) || pesoEquipaje <= 0)) {
+      setErrorCompra('Indica un peso válido para el equipaje o quítalo del carrito');
+      return;
+    }
+    const serviciosElegidos = servicios.filter((s) => serviciosSel.includes(s.id));
+
     setComprando(true);
     setErrorCompra(null);
-    setPasos(PASOS_INICIALES);
+    setPasos([
+      { clave: 'reserva', nombre: 'Crear reserva', estado: 'pendiente' },
+      ...(serviciosElegidos.length > 0
+        ? [{ clave: 'servicios', nombre: 'Agregar servicios', estado: 'pendiente' as EstadoPaso }]
+        : []),
+      ...(equipajeTipo
+        ? [{ clave: 'equipaje', nombre: 'Registrar equipaje', estado: 'pendiente' as EstadoPaso }]
+        : []),
+      { clave: 'pago', nombre: 'Registrar pago', estado: 'pendiente' },
+      { clave: 'factura', nombre: 'Emitir factura', estado: 'pendiente' },
+      { clave: 'asiento', nombre: 'Bloquear asiento', estado: 'pendiente' },
+    ]);
 
     // Paso 1: reserva
     let reserva: Reserva;
@@ -171,26 +219,73 @@ export function CheckoutPage() {
         asiento: codigoAsiento,
         estado: EstadoReserva.Confirmada,
       });
-      marcarPaso(0, 'ok', `Reserva #${reserva.id}`);
+      marcarPaso('reserva', 'ok', `Reserva #${reserva.id}`);
     } catch (e) {
-      marcarPaso(0, 'error', getErrorMessage(e, 'Falló la creación de la reserva'));
+      marcarPaso('reserva', 'error', getErrorMessage(e, 'Falló la creación de la reserva'));
       setErrorCompra('No se pudo crear la reserva. No se realizó ningún cobro.');
       setComprando(false);
       return;
     }
 
-    // Paso 2: pago
+    // Paso 2: servicios adicionales (POST /reserva-servicios/ por cada chip)
+    let serviciosOk: Servicio[] = [];
+    if (serviciosElegidos.length > 0) {
+      const resultados = await Promise.allSettled(
+        serviciosElegidos.map((servicio) =>
+          useCaseFactory.reservaServicios.create({
+            reserva: reserva.id,
+            servicio: servicio.id,
+            cantidad: 1,
+            precio_aplicado: Number(servicio.precio),
+          }),
+        ),
+      );
+      serviciosOk = serviciosElegidos.filter((_, i) => resultados[i].status === 'fulfilled');
+      if (serviciosOk.length === serviciosElegidos.length) {
+        marcarPaso('servicios', 'ok', `${serviciosOk.length} servicio(s) agregado(s)`);
+      } else {
+        marcarPaso(
+          'servicios',
+          'error',
+          `Solo se agregaron ${serviciosOk.length} de ${serviciosElegidos.length}; el total se ajustó`,
+        );
+      }
+    }
+
+    // Paso 3: equipaje opcional (POST /equipajes/)
+    let equipajeRegistrado = false;
+    if (equipajeTipo) {
+      try {
+        await useCaseFactory.equipajes.create({
+          reserva: reserva.id,
+          tipo: equipajeTipo,
+          peso_kg: pesoEquipaje,
+          descripcion: `Equipaje ${equipajeTipo} · ${pesoEquipaje} kg`,
+        });
+        equipajeRegistrado = true;
+        marcarPaso('equipaje', 'ok', `${equipajeTipo} · ${pesoEquipaje} kg`);
+      } catch (e) {
+        marcarPaso('equipaje', 'error', getErrorMessage(e, 'No se pudo registrar el equipaje'));
+      }
+    }
+
+    // Totales reales según lo que sí quedó registrado.
+    const subtotal = Number(vuelo.precio) + serviciosOk.reduce((s, x) => s + Number(x.precio), 0);
+    const impuestosReales = round2(subtotal * TASA_IMPUESTOS);
+    const totalReal = round2(subtotal + impuestosReales);
+
+    // Paso 4: pago por el total con todo incluido
     try {
       await useCaseFactory.pagos.create({
         reserva: reserva.id,
         metodo_pago: Number(metodoId),
-        monto: total,
+        monto: totalReal,
         estado: EstadoPago.Completado,
         referencia: `WEB-${Date.now()}`,
       });
-      marcarPaso(1, 'ok', formatPrecio(total));
+      marcarPaso('pago', 'ok', formatPrecio(totalReal));
     } catch (e) {
-      marcarPaso(1, 'error', getErrorMessage(e, 'Falló el registro del pago'));
+      marcarPaso('pago', 'error', getErrorMessage(e, 'Falló el registro del pago'));
       setErrorCompra(
         `La reserva #${reserva.id} se creó pero el pago falló. Puedes reintentar el pago desde el módulo Pagos o cancelar la reserva.`,
       );
@@ -198,38 +293,44 @@ export function CheckoutPage() {
       return;
     }
 
-    // Paso 3: factura
+    // Paso 5: factura con el desglose real
     let factura: Factura | null = null;
     try {
       factura = await useCaseFactory.facturas.create({
         reserva: reserva.id,
-        total,
-        impuestos,
+        total: totalReal,
+        impuestos: impuestosReales,
         estado: EstadoFactura.Pagada,
       });
-      marcarPaso(2, 'ok', `Factura #${factura.id}`);
+      marcarPaso('factura', 'ok', `Factura #${factura.id}`);
     } catch (e) {
-      marcarPaso(2, 'error', getErrorMessage(e, 'Falló la emisión de la factura'));
+      marcarPaso('factura', 'error', getErrorMessage(e, 'Falló la emisión de la factura'));
       setErrorCompra(
         `Reserva y pago quedaron registrados, pero la factura no se pudo emitir. Repórtalo al staff.`,
       );
     }
 
-    // Paso 4 (opcional): marcar asiento como no disponible si venía del catálogo
+    // Paso 6 (opcional): marcar asiento como no disponible si venía del catálogo
     const asientoCatalogo = asientos.find((a) => a.codigo.toUpperCase() === codigoAsiento);
     if (asientoCatalogo) {
       try {
         await useCaseFactory.asientos.update(asientoCatalogo.id, { disponible: false });
-        marcarPaso(3, 'ok', codigoAsiento);
+        marcarPaso('asiento', 'ok', codigoAsiento);
       } catch {
         // Los usuarios normales no siempre pueden editar asientos: no es fatal.
-        marcarPaso(3, 'error', 'El asiento no se pudo bloquear (permisos), la reserva sigue válida');
+        marcarPaso('asiento', 'error', 'El asiento no se pudo bloquear (permisos), la reserva sigue válida');
       }
     } else {
-      marcarPaso(3, 'ok', 'Asiento manual, sin bloqueo en catálogo');
+      marcarPaso('asiento', 'ok', 'Asiento de mapa temporal, sin bloqueo en catálogo');
     }
 
-    setResultado({ reserva, factura, total });
+    setResultado({
+      reserva,
+      factura,
+      total: totalReal,
+      serviciosAgregados: serviciosOk.length,
+      equipajeRegistrado,
+    });
     setComprando(false);
   }
 
@@ -237,7 +338,7 @@ export function CheckoutPage() {
 
   if (cargando) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-4xl space-y-4">
         <Skeleton className="h-9 w-64" />
         <Skeleton className="h-40 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -247,7 +348,7 @@ export function CheckoutPage() {
 
   if (error || !vuelo) {
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <p className="rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
           {error ?? 'Vuelo no encontrado'}
         </p>
@@ -276,6 +377,18 @@ export function CheckoutPage() {
               <dt className="text-gray-400">Reserva</dt>
               <dd className="font-bold text-white">#{resultado.reserva.id} · asiento {resultado.reserva.asiento}</dd>
             </div>
+            {resultado.serviciosAgregados > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-gray-400">Servicios adicionales</dt>
+                <dd className="font-bold text-white">{resultado.serviciosAgregados}</dd>
+              </div>
+            )}
+            {resultado.equipajeRegistrado && (
+              <div className="flex justify-between">
+                <dt className="text-gray-400">Equipaje</dt>
+                <dd className="font-bold text-white">Registrado</dd>
+              </div>
+            )}
             <div className="flex justify-between">
               <dt className="text-gray-400">Factura</dt>
               <dd className="font-bold text-white">
@@ -304,7 +417,7 @@ export function CheckoutPage() {
   const sinPasajero = misPasajeros.length === 0;
 
   return (
-    <div className="mx-auto max-w-3xl animate-fade-in">
+    <div className="mx-auto max-w-4xl animate-fade-in">
       <h1 className="text-3xl font-black">
         Finalizar <span className="text-primary">compra</span>
       </h1>
@@ -326,7 +439,7 @@ export function CheckoutPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_280px]">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Formulario */}
         <div className="space-y-4 rounded-2xl border border-dark-border bg-dark-surface p-5">
           {/* Pasajero */}
@@ -409,27 +522,13 @@ export function CheckoutPage() {
             </div>
           )}
 
-          {/* Asiento */}
-          {asientos.length > 0 ? (
-            <FormSelect
-              label="Asiento"
-              value={asientoSel}
-              onChange={(e) => setAsientoSel(e.target.value)}
-              placeholder="Selecciona un asiento disponible"
-              options={asientos.map((a) => ({
-                value: a.codigo,
-                label: `${a.codigo} · ${a.clase} (fila ${a.fila})`,
-              }))}
-            />
-          ) : (
-            <FormInput
-              label="Asiento"
-              value={asientoSel}
-              onChange={(e) => setAsientoSel(e.target.value)}
-              placeholder="Ej: 12A (este vuelo no tiene mapa de asientos cargado)"
-              maxLength={4}
-            />
-          )}
+          {/* Mapa de asientos */}
+          <SeatMapSelector
+            capacidad={vuelo.aeronave_detalle?.capacidad ?? CAPACIDAD_FALLBACK}
+            asientos={asientos}
+            value={asientoSel}
+            onChange={setAsientoSel}
+          />
 
           {/* Método de pago */}
           <FormSelect
@@ -446,32 +545,25 @@ export function CheckoutPage() {
           )}
         </div>
 
-        {/* Desglose */}
-        <aside className="h-fit rounded-2xl border border-dark-border bg-dark-surface p-5">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Desglose</h2>
-          <dl className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <dt className="text-gray-400">Vuelo</dt>
-              <dd className="text-white">{formatPrecio(precio)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt className="text-gray-400">Impuestos (12%)</dt>
-              <dd className="text-white">{formatPrecio(impuestos)}</dd>
-            </div>
-            <div className="flex justify-between border-t border-dark-border pt-2">
-              <dt className="font-bold text-white">Total</dt>
-              <dd className="text-lg font-black text-primary-light">{formatPrecio(total)}</dd>
-            </div>
-          </dl>
-          <Button
-            className="mt-4 w-full"
-            isLoading={comprando}
-            disabled={sinPasajero || metodos.length === 0}
-            onClick={confirmarYPagar}
-          >
-            Confirmar y pagar
-          </Button>
-        </aside>
+        {/* Carrito con servicios y equipaje */}
+        <CarritoResumen
+          vuelo={vuelo}
+          asiento={asientoSel}
+          pasajeroNombre={
+            pasajeroSeleccionado?.nombre_completo || pasajeroSeleccionado?.numero_pasaporte || ''
+          }
+          servicios={servicios}
+          serviciosSel={serviciosSel}
+          onToggleServicio={toggleServicio}
+          equipajeTipo={equipajeTipo}
+          onEquipajeTipo={setEquipajeTipo}
+          equipajePeso={equipajePeso}
+          onEquipajePeso={setEquipajePeso}
+          desglose={desglose}
+          comprando={comprando}
+          deshabilitado={sinPasajero || metodos.length === 0}
+          onConfirmar={confirmarYPagar}
+        />
       </div>
 
       {errorCompra && (
@@ -481,10 +573,10 @@ export function CheckoutPage() {
       )}
 
       {/* Progreso de los pasos (visible durante/después del intento) */}
-      {pasos.some((p) => p.estado !== 'pendiente') && (
+      {pasos.length > 0 && (
         <ol className="mt-4 space-y-2 rounded-2xl border border-dark-border bg-dark-surface p-5 animate-fade-in">
           {pasos.map((paso) => (
-            <li key={paso.nombre} className="flex items-center gap-3 text-sm">
+            <li key={paso.clave} className="flex items-center gap-3 text-sm">
               <span
                 className={`h-2.5 w-2.5 shrink-0 rounded-full ${
                   paso.estado === 'ok'

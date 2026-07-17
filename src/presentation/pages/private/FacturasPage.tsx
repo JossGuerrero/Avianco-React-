@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import type { Factura } from '../../../domain/entities/Factura';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
+import type { Servicio } from '../../../domain/entities/Servicio';
+import type { ReservaServicio } from '../../../domain/entities/ReservaServicio';
+import type { Equipaje } from '../../../domain/entities/Equipaje';
 import { EstadoFactura } from '../../../domain/enums/EstadoFactura';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
@@ -33,6 +36,7 @@ export function FacturasPage() {
   const [facturas, setFacturas] = useState<Factura[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [pasajeros, setPasajeros] = useState<Pasajero[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,18 +46,26 @@ export function FacturasPage() {
   const [guardando, setGuardando] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Detalle de factura: reserva asociada + servicios + equipaje
+  const [detalleFactura, setDetalleFactura] = useState<Factura | null>(null);
+  const [detalleServicios, setDetalleServicios] = useState<ReservaServicio[]>([]);
+  const [detalleEquipajes, setDetalleEquipajes] = useState<Equipaje[]>([]);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
+
   const cargar = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [facturasData, reservasData, pasajerosData] = await Promise.all([
+      const [facturasData, reservasData, pasajerosData, serviciosData] = await Promise.all([
         useCaseFactory.facturas.getAll(),
         useCaseFactory.reservas.getAll(),
         useCaseFactory.pasajeros.getAll(),
+        useCaseFactory.servicios.getAll().catch(() => [] as Servicio[]),
       ]);
       setFacturas(facturasData);
       setReservas(reservasData);
       setPasajeros(pasajerosData);
+      setServicios(serviciosData);
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudieron cargar las facturas'));
     } finally {
@@ -124,6 +136,32 @@ export function FacturasPage() {
     }
   }
 
+  async function abrirDetalle(factura: Factura) {
+    setDetalleFactura(factura);
+    setCargandoDetalle(true);
+    try {
+      const [serviciosData, equipajesData] = await Promise.all([
+        useCaseFactory.reservaServicios
+          .getAll({ reserva: factura.reserva })
+          .catch(() => [] as ReservaServicio[]),
+        useCaseFactory.equipajes
+          .getAll({ reserva: factura.reserva })
+          .catch(() => [] as Equipaje[]),
+      ]);
+      // Filtro en cliente por si el backend ignora el query param.
+      setDetalleServicios(serviciosData.filter((s) => s.reserva === factura.reserva));
+      setDetalleEquipajes(equipajesData.filter((e) => e.reserva === factura.reserva));
+    } finally {
+      setCargandoDetalle(false);
+    }
+  }
+
+  function cerrarDetalle() {
+    setDetalleFactura(null);
+    setDetalleServicios([]);
+    setDetalleEquipajes([]);
+  }
+
   async function eliminar(factura: Factura) {
     if (!window.confirm(`¿Eliminar la factura #${factura.id}?`)) return;
     try {
@@ -165,20 +203,23 @@ export function FacturasPage() {
           getRowId={(f) => f.id}
           loading={loading}
           emptyMessage="No hay facturas registradas"
-          actions={
-            isStaff
-              ? (factura) => (
-                  <>
-                    <Button variant="secondary" onClick={() => abrirEditar(factura)}>
-                      Editar
-                    </Button>
-                    <Button variant="danger" onClick={() => eliminar(factura)}>
-                      Eliminar
-                    </Button>
-                  </>
-                )
-              : undefined
-          }
+          actions={(factura) => (
+            <>
+              <Button variant="ghost" onClick={() => abrirDetalle(factura)}>
+                Detalle
+              </Button>
+              {isStaff && (
+                <>
+                  <Button variant="secondary" onClick={() => abrirEditar(factura)}>
+                    Editar
+                  </Button>
+                  <Button variant="danger" onClick={() => eliminar(factura)}>
+                    Eliminar
+                  </Button>
+                </>
+              )}
+            </>
+          )}
         />
       </div>
 
@@ -242,6 +283,148 @@ export function FacturasPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Detalle completo: reserva + servicios + equipaje + desglose real */}
+      {detalleFactura && (() => {
+        const reserva = reservas.find((r) => r.id === detalleFactura.reserva);
+        const pasajero = reserva
+          ? pasajeros.find((p) => p.id === reserva.pasajero)
+          : undefined;
+        const nombreServicio = new Map(servicios.map((s) => [s.id, s.nombre]));
+        const totalServicios = detalleServicios.reduce(
+          (suma, rs) => suma + rs.cantidad * Number(rs.precio_aplicado),
+          0,
+        );
+        const subtotal = Number(detalleFactura.total) - Number(detalleFactura.impuestos);
+
+        return (
+          <Modal open title={`Factura #${detalleFactura.id}`} onClose={cerrarDetalle} ancho="lg">
+            <div className="flex items-center justify-between">
+              <Badge estado={detalleFactura.estado} />
+              <p className="text-2xl font-black text-primary-light">
+                {formatPrecio(detalleFactura.total)}
+              </p>
+            </div>
+
+            {/* Reserva asociada */}
+            <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
+              Reserva asociada
+            </h3>
+            {reserva ? (
+              <dl className="mt-2 space-y-1.5 rounded-xl border border-dark-border bg-dark p-4 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-gray-400">Reserva</dt>
+                  <dd className="font-semibold text-white">
+                    #{reserva.id} · vuelo #{reserva.vuelo}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-400">Asiento</dt>
+                  <dd className="font-semibold text-white">{reserva.asiento}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-400">Pasajero</dt>
+                  <dd className="font-semibold text-white">
+                    {pasajero?.nombre_completo || pasajero?.numero_pasaporte || `#${reserva.pasajero}`}
+                  </dd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <dt className="text-gray-400">Estado</dt>
+                  <dd>
+                    <Badge estado={reserva.estado} />
+                  </dd>
+                </div>
+              </dl>
+            ) : (
+              <p className="mt-2 text-sm text-gray-400">
+                Reserva #{detalleFactura.reserva} (sin acceso al detalle)
+              </p>
+            )}
+
+            {/* Servicios adicionales */}
+            <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
+              Servicios adicionales
+            </h3>
+            {cargandoDetalle ? (
+              <p className="mt-2 text-sm text-gray-400">Cargando…</p>
+            ) : detalleServicios.length === 0 ? (
+              <p className="mt-2 text-sm text-gray-400">Sin servicios adicionales.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {detalleServicios.map((rs) => (
+                  <li
+                    key={rs.id}
+                    className="flex items-center justify-between rounded-lg border border-dark-border bg-dark px-4 py-2.5 text-sm"
+                  >
+                    <span className="text-gray-200">
+                      {nombreServicio.get(rs.servicio) ?? `Servicio #${rs.servicio}`}
+                      <span className="ml-2 text-xs text-gray-400">× {rs.cantidad}</span>
+                    </span>
+                    <span className="font-semibold text-white">
+                      {formatPrecio(rs.cantidad * Number(rs.precio_aplicado))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Equipaje */}
+            <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
+              Equipaje
+            </h3>
+            {cargandoDetalle ? (
+              <p className="mt-2 text-sm text-gray-400">Cargando…</p>
+            ) : detalleEquipajes.length === 0 ? (
+              <p className="mt-2 text-sm text-gray-400">Sin equipaje registrado.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {detalleEquipajes.map((equipaje) => (
+                  <li
+                    key={equipaje.id}
+                    className="flex items-center justify-between rounded-lg border border-dark-border bg-dark px-4 py-2.5 text-sm"
+                  >
+                    <span className="capitalize text-gray-200">{equipaje.tipo}</span>
+                    <span className="text-xs text-gray-400">
+                      {Number(equipaje.peso_kg)} kg
+                      {equipaje.descripcion ? ` · ${equipaje.descripcion}` : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {/* Desglose real */}
+            <dl className="mt-5 space-y-2 rounded-xl border border-dark-border bg-dark p-4 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-gray-400">Subtotal (tarifa + servicios)</dt>
+                <dd className="text-white">{formatPrecio(subtotal)}</dd>
+              </div>
+              {totalServicios > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-gray-400">De los cuales servicios</dt>
+                  <dd className="text-white">{formatPrecio(totalServicios)}</dd>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <dt className="text-gray-400">Impuestos</dt>
+                <dd className="text-white">{formatPrecio(detalleFactura.impuestos)}</dd>
+              </div>
+              <div className="flex justify-between border-t border-dark-border pt-2">
+                <dt className="font-bold text-white">Total</dt>
+                <dd className="text-lg font-black text-primary-light">
+                  {formatPrecio(detalleFactura.total)}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-6 flex justify-end">
+              <Button variant="secondary" onClick={cerrarDetalle}>
+                Cerrar
+              </Button>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }

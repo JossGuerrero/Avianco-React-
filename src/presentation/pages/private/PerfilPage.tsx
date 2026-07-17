@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
+import { ProximosViajes } from '../../components/ProximosViajes';
 import { formatFechaCorta } from '../../utils/formatters';
 
 export function PerfilPage() {
@@ -87,6 +88,9 @@ export function PerfilPage() {
           </p>
         )}
       </section>
+
+      {/* Itinerario: Reserva + CheckIn + Factura + Vuelo en una sola vista */}
+      <ProximosViajes />
     </div>
   );
 }

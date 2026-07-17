@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import type { Vuelo } from '../../../domain/entities/Vuelo';
 import type { Promocion } from '../../../domain/entities/Promocion';
 import { EstadoVuelo } from '../../../domain/enums/EstadoVuelo';
@@ -9,14 +9,41 @@ import { VueloCard } from '../../components/VueloCard';
 import { VueloDetalleModal } from '../../components/VueloDetalleModal';
 import { PromocionCard } from '../../components/PromocionCard';
 import { SkeletonCard } from '../../components/Skeleton';
+import { VueloSearchBar } from '../../components/VueloSearchBar';
+import {
+  FILTROS_VACIOS,
+  filtrarVuelos,
+  type FiltrosVuelo,
+} from '../../utils/filtrosVuelo';
 
 export function HomePage() {
+  const navigate = useNavigate();
   const token = useAuthStore((state) => state.token);
   const [vuelos, setVuelos] = useState<Vuelo[]>([]);
   const [promociones, setPromociones] = useState<Promocion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vueloDetalle, setVueloDetalle] = useState<Vuelo | null>(null);
+  const [filtros, setFiltros] = useState<FiltrosVuelo>(FILTROS_VACIOS);
+
+  // El GET público de /aeropuertos/ requiere token, así que las opciones del
+  // buscador se derivan de los vuelos ya cargados (traen *_detalle anidado).
+  const opcionesAeropuertos = useMemo(() => {
+    const mapa = new Map<number, string>();
+    for (const vuelo of vuelos) {
+      if (vuelo.origen_detalle) {
+        mapa.set(vuelo.origen, `${vuelo.origen_detalle.codigo_iata} · ${vuelo.origen_detalle.ciudad}`);
+      }
+      if (vuelo.destino_detalle) {
+        mapa.set(vuelo.destino, `${vuelo.destino_detalle.codigo_iata} · ${vuelo.destino_detalle.ciudad}`);
+      }
+    }
+    return [...mapa.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, label]) => ({ value: String(id), label }));
+  }, [vuelos]);
+
+  const vuelosFiltrados = useMemo(() => filtrarVuelos(vuelos, filtros), [vuelos, filtros]);
 
   useEffect(() => {
     let cancelado = false;
@@ -110,6 +137,15 @@ export function HomePage() {
             Vuelos <span className="text-primary">programados</span>
           </h2>
 
+          <div className="mt-6">
+            <VueloSearchBar
+              opcionesAeropuertos={opcionesAeropuertos}
+              filtros={filtros}
+              onChange={setFiltros}
+              cargandoOpciones={loading}
+            />
+          </div>
+
           {error && (
             <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
               {error}
@@ -120,11 +156,34 @@ export function HomePage() {
             <p className="mt-6 text-gray-400">No hay vuelos programados por el momento.</p>
           )}
 
+          {!loading && !error && vuelos.length > 0 && vuelosFiltrados.length === 0 && (
+            <div className="mt-6 rounded-xl border border-dark-border bg-dark-surface p-6 text-center">
+              <p className="text-gray-300">
+                No encontramos vuelos con esos filtros de origen, destino o fecha.
+              </p>
+              <button
+                onClick={() => setFiltros(FILTROS_VACIOS)}
+                className="mt-2 text-sm font-semibold text-primary-light hover:underline"
+              >
+                Limpiar filtros y ver todos los vuelos
+              </button>
+            </div>
+          )}
+
           <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {loading
               ? Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} />)
-              : vuelos.map((vuelo) => (
-                  <VueloCard key={vuelo.id} vuelo={vuelo} onClick={() => setVueloDetalle(vuelo)} />
+              : vuelosFiltrados.map((vuelo) => (
+                  <VueloCard
+                    key={vuelo.id}
+                    vuelo={vuelo}
+                    onClick={() => setVueloDetalle(vuelo)}
+                    onReservar={
+                      vuelo.estado === EstadoVuelo.Programado
+                        ? () => navigate(token ? `/checkout/${vuelo.id}` : '/login')
+                        : undefined
+                    }
+                  />
                 ))}
           </div>
         </section>
