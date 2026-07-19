@@ -14,11 +14,11 @@ import { FormSelect } from './FormSelect';
 import { Skeleton } from './Skeleton';
 import { formatFecha, formatPrecio, getErrorMessage } from '../utils/formatters';
 import { labelAeropuerto } from '../utils/labels';
+import { FlightRoute } from './FlightRoute';
 
 interface VueloDetalleModalProps {
   vuelo: Vuelo | null;
   onClose: () => void;
-  // Avisa al padre cuando staff cambia el estado, para refrescar su lista.
   onVueloActualizado?: (vuelo: Vuelo) => void;
 }
 
@@ -31,13 +31,11 @@ export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloD
   const [aeropuertos, setAeropuertos] = useState<Aeropuerto[]>([]);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
 
-  // Cambio de estado (solo staff)
   const [nuevoEstado, setNuevoEstado] = useState<EstadoVuelo | ''>('');
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [msgCambio, setMsgCambio] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null);
 
   useEffect(() => {
-    // Al abrir otro vuelo se reinicia el formulario de estado.
     setNuevoEstado('');
     setMsgCambio(null);
   }, [vuelo?.id]);
@@ -112,8 +110,7 @@ export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloD
 
   return (
     <Modal open title={`Vuelo #${vuelo.id}`} onClose={onClose} ancho="lg">
-      {/* Ruta */}
-      <div className="rounded-xl bg-gradient-to-br from-dark to-dark-surface border border-dark-border p-5">
+      <div className="group rounded-xl border border-dark-border bg-gradient-to-br from-dark to-dark-surface p-5">
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-3xl font-black text-white">
@@ -122,11 +119,7 @@ export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloD
             <p className="text-sm text-gray-300">{origen?.ciudad ?? ''}</p>
             <p className="mt-1 text-xs text-gray-400">{formatFecha(vuelo.fecha_salida)}</p>
           </div>
-          <div className="flex-1 px-3">
-            <div className="relative h-px bg-gradient-to-r from-transparent via-primary to-transparent">
-              <span className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-primary" />
-            </div>
-          </div>
+          <FlightRoute animarEnHover ancho="md" etiqueta="" />
           <div className="text-right">
             <p className="text-3xl font-black text-white">
               {destino?.codigo_iata ?? `#${vuelo.destino}`}
@@ -164,7 +157,6 @@ export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloD
 
       {token && !cargandoDetalle && (
         <>
-          {/* Escalas */}
           <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">Escalas</h3>
           {escalas.length === 0 ? (
             <p className="mt-2 text-sm text-gray-400">Vuelo directo, sin escalas.</p>
@@ -192,7 +184,6 @@ export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloD
             </ul>
           )}
 
-          {/* Timeline de estados */}
           <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
             Historial de estados
           </h3>
@@ -214,7 +205,6 @@ export function VueloDetalleModal({ vuelo, onClose, onVueloActualizado }: VueloD
         </>
       )}
 
-      {/* Panel staff: cambio de estado con notificaciones automáticas */}
       {isStaff && (
         <div className="mt-5 rounded-xl border border-dark-border bg-dark p-4">
           <h3 className="text-sm font-bold uppercase tracking-wide text-gray-400">

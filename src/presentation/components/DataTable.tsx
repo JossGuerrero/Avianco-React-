@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Skeleton } from './Skeleton';
+import { PlaneIcon } from './PlaneIcon';
 
 export interface Column<T> {
   header: string;
@@ -7,8 +8,6 @@ export interface Column<T> {
   className?: string;
 }
 
-// Paginación controlada por el servidor (DRF): la página actual y los datos
-// los maneja la página, la tabla solo pinta los controles.
 export interface ServerPagination {
   page: number;
   hasNext: boolean;
@@ -62,7 +61,6 @@ export function DataTable<T>({
 
   const totalColumnas = columns.length + (actions ? 1 : 0);
 
-  // Sin paginación de servidor, se pagina en cliente sobre los datos cargados.
   const totalPagesLocal = Math.max(1, Math.ceil(data.length / pageSize));
   const paginaLocal = Math.min(pageLocal, totalPagesLocal - 1);
   const filas = pagination
@@ -70,17 +68,17 @@ export function DataTable<T>({
     : data.slice(paginaLocal * pageSize, (paginaLocal + 1) * pageSize);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-dark-border bg-dark-surface">
+    <div className="overflow-hidden rounded-2xl border border-dark-border bg-dark-surface shadow-lg">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead>
-            <tr className="border-b border-dark-border text-xs uppercase tracking-wide text-gray-400">
+            <tr className="border-b border-dark-border bg-gradient-to-r from-dark via-dark-surface to-dark text-xs uppercase tracking-wider text-gray-400">
               {columns.map((col) => (
-                <th key={col.header} className={`px-4 py-3 font-semibold ${col.className ?? ''}`}>
+                <th key={col.header} className={`px-5 py-4 font-bold ${col.className ?? ''}`}>
                   {col.header}
                 </th>
               ))}
-              {actions && <th className="px-4 py-3 text-right font-semibold">Acciones</th>}
+              {actions && <th className="px-5 py-4 text-right font-bold">Acciones</th>}
             </tr>
           </thead>
           <tbody>
@@ -97,25 +95,32 @@ export function DataTable<T>({
 
             {!loading && filas.length === 0 && (
               <tr>
-                <td colSpan={totalColumnas} className="px-4 py-10 text-center text-gray-400">
-                  {emptyMessage}
+                <td colSpan={totalColumnas} className="px-4 py-12 text-center">
+                  <div className="flex flex-col items-center gap-3 text-gray-400">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary-light animate-float motion-reduce:animate-none">
+                      <PlaneIcon size="lg" />
+                    </span>
+                    <p className="text-sm">{emptyMessage}</p>
+                  </div>
                 </td>
               </tr>
             )}
 
             {!loading &&
-              filas.map((fila) => (
+              filas.map((fila, index) => (
                 <tr
                   key={getRowId(fila)}
-                  className="border-b border-dark-border/50 text-gray-200 transition-colors last:border-b-0 hover:bg-dark/50"
+                  className={`border-b border-dark-border/50 text-gray-200 transition-colors last:border-b-0 hover:bg-primary/5 ${
+                    index % 2 === 0 ? 'bg-dark-surface' : 'bg-dark/30'
+                  }`}
                 >
                   {columns.map((col) => (
-                    <td key={col.header} className={`px-4 py-3 ${col.className ?? ''}`}>
+                    <td key={col.header} className={`px-5 py-3.5 ${col.className ?? ''}`}>
                       {col.render(fila)}
                     </td>
                   ))}
                   {actions && (
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <div className="flex justify-end gap-2">{actions(fila)}</div>
                     </td>
                   )}
@@ -125,7 +130,6 @@ export function DataTable<T>({
         </table>
       </div>
 
-      {/* Controles de paginación del servidor */}
       {pagination && !loading && (pagination.hasNext || pagination.hasPrevious) && (
         <div className="flex items-center justify-between border-t border-dark-border px-4 py-3 text-sm text-gray-400">
           <span>
@@ -149,7 +153,6 @@ export function DataTable<T>({
         </div>
       )}
 
-      {/* Paginación en cliente (por defecto) */}
       {!pagination && !loading && totalPagesLocal > 1 && (
         <div className="flex items-center justify-between border-t border-dark-border px-4 py-3 text-sm text-gray-400">
           <span>

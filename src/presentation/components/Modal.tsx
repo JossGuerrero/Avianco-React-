@@ -19,10 +19,10 @@ export function Modal({ open, title, onClose, children, ancho = 'md' }: ModalPro
       <div
         className={`max-h-[90vh] w-full ${
           ancho === 'lg' ? 'max-w-2xl' : 'max-w-lg'
-        } overflow-y-auto rounded-2xl border border-dark-border bg-dark-surface p-6 shadow-2xl animate-scale-in`}
+        } overflow-y-auto rounded-2xl border border-dark-border bg-dark-surface shadow-2xl shadow-black/50 animate-scale-in`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between border-b border-dark-border px-6 py-4">
           <h2 className="text-xl font-bold text-white">{title}</h2>
           <button
             onClick={onClose}
@@ -32,7 +32,7 @@ export function Modal({ open, title, onClose, children, ancho = 'md' }: ModalPro
             ✕
           </button>
         </div>
-        <div className="mt-4">{children}</div>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
