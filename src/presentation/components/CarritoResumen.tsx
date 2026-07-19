@@ -69,24 +69,31 @@ export function CarritoResumen({
   const seleccionados = servicios.filter((s) => serviciosSel.includes(s.id));
 
   return (
-    <aside className="h-fit rounded-2xl border border-dark-border bg-dark-surface p-5">
-      <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Tu carrito</h2>
+    <aside className="h-fit rounded-3xl border border-dark-border bg-gradient-to-b from-dark-surface to-dark p-6 shadow-xl space-y-5">
+      <div className="flex items-center gap-2 border-b border-dark-border pb-3">
+        <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        </svg>
+        <h2 className="text-xs font-black uppercase tracking-widest text-white">Resumen de Compra</h2>
+      </div>
 
       {/* Resumen de selección */}
-      <dl className="mt-3 space-y-1.5 text-sm">
-        <div className="flex justify-between gap-2">
-          <dt className="text-gray-400">Vuelo</dt>
-          <dd className="font-semibold text-white">{ruta}</dd>
+      <div className="rounded-2xl bg-dark/40 p-4 border border-dark-border/40 space-y-3 text-xs animate-fade-in">
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400 font-medium">Itinerario:</span>
+          <span className="font-bold text-white tracking-wide bg-dark-surface px-2 py-0.5 rounded border border-dark-border/50">{ruta}</span>
         </div>
-        <div className="flex justify-between gap-2">
-          <dt className="text-gray-400">Asiento</dt>
-          <dd className="font-semibold text-white">{asiento || '—'}</dd>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400 font-medium">Asiento asignado:</span>
+          <span className={`font-mono px-2 py-0.5 rounded font-black ${asiento ? 'text-primary-light bg-primary/10 border border-primary/20' : 'text-gray-500 bg-dark-surface/50 border border-dark-border/30'}`}>
+            {asiento || 'Sin asignar'}
+          </span>
         </div>
-        <div className="flex justify-between gap-2">
-          <dt className="text-gray-400">Pasajero</dt>
-          <dd className="truncate font-semibold text-white">{pasajeroNombre || '—'}</dd>
+        <div className="flex justify-between items-center gap-2">
+          <span className="text-gray-400 font-medium">Pasajero titular:</span>
+          <span className="truncate font-semibold text-gray-200 max-w-[150px]">{pasajeroNombre || 'No seleccionado'}</span>
         </div>
-      </dl>
+      </div>
 
       {/* Servicios adicionales */}
       {servicios.length > 0 && (
