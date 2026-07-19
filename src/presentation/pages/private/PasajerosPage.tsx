@@ -141,16 +141,47 @@ export function PasajerosPage() {
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          <span className="text-primary">Pasajeros</span>
-        </h1>
-        <Button onClick={abrirCrear}>+ Nuevo pasajero</Button>
+    <div className="space-y-8">
+      {/* Banner / Cabecera Premium estilo Aerolínea */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-dark-surface via-dark-surface to-primary/10 border border-dark-border p-6 sm:p-8 shadow-xl">
+        {/* Luces de fondo difuminadas */}
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <span className="text-xs font-bold tracking-widest text-primary-light uppercase">Servicios de Pasajeros</span>
+            </div>
+            <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl text-white">
+              Perfiles de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Viajeros</span>
+            </h1>
+            <p className="mt-2 text-sm text-gray-400 max-w-xl">
+              {isStaff 
+                ? "Panel de administración global para gestionar los perfiles de todos los pasajeros en la plataforma." 
+                : "Agrega y administra los perfiles de viaje de tus acompañantes y tu propia información para agilizar la compra de boletos y el check-in."}
+            </p>
+          </div>
+          <div>
+            <Button 
+              onClick={abrirCrear}
+              className="w-full sm:w-auto shadow-lg shadow-primary/25 hover:shadow-primary/45 transition-all duration-300 transform hover:-translate-y-0.5"
+            >
+              <span className="flex items-center justify-center gap-2">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Registrar Viajero
+              </span>
+            </Button>
+          </div>
+        </div>
       </div>
 
       {error && (
-        <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
+        <p className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light animate-fade-in">
           {error}
         </p>
       )}
