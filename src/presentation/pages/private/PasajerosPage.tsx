@@ -220,53 +220,68 @@ export function PasajerosPage() {
         title={editando ? `Editar pasajero #${editando.id}` : 'Nuevo pasajero'}
         onClose={() => setModalAbierto(false)}
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {isStaff && (
-            <FormInput
-              label="ID de usuario"
-              type="number"
-              value={form.usuario}
-              onChange={(e) => setForm((f) => ({ ...f, usuario: e.target.value }))}
-              placeholder="ID del usuario vinculado"
-            />
+            <div className="rounded-xl border border-yellow-500/25 bg-yellow-500/5 p-3">
+              <p className="text-xs font-semibold text-yellow-400 mb-1.5">Modo Administrador: Vinculación de Usuario</p>
+              <FormInput
+                label="ID de usuario propietario"
+                type="number"
+                value={form.usuario}
+                onChange={(e) => setForm((f) => ({ ...f, usuario: e.target.value }))}
+                placeholder="Ej: 42"
+              />
+            </div>
           )}
-          <FormInput
-            label="Número de pasaporte"
-            value={form.numero_pasaporte}
-            onChange={(e) => setForm((f) => ({ ...f, numero_pasaporte: e.target.value }))}
-            placeholder="Ej: AB123456"
-          />
-          <PaisSelect
-            label="Nacionalidad"
-            value={form.nacionalidad}
-            onChange={(nombre) => setForm((f) => ({ ...f, nacionalidad: nombre }))}
-          />
-          <FormInput
-            label="Fecha de nacimiento"
-            type="date"
-            value={form.fecha_nacimiento}
-            onChange={(e) => setForm((f) => ({ ...f, fecha_nacimiento: e.target.value }))}
-          />
-          <FormInput
-            label="Teléfono"
-            type="tel"
-            value={form.telefono}
-            onChange={(e) => setForm((f) => ({ ...f, telefono: e.target.value }))}
-            placeholder="Ej: +57 300 123 4567"
-          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <FormInput
+                label="Número de pasaporte"
+                value={form.numero_pasaporte}
+                onChange={(e) => setForm((f) => ({ ...f, numero_pasaporte: e.target.value }))}
+                placeholder="Ej: AB123456"
+              />
+              <span className="mt-1.5 text-[10px] text-gray-500 block">Debe coincidir exactamente con el documento oficial</span>
+            </div>
+            <div>
+              <PaisSelect
+                label="Nacionalidad"
+                value={form.nacionalidad}
+                onChange={(nombre) => setForm((f) => ({ ...f, nacionalidad: nombre }))}
+              />
+              <span className="mt-1.5 text-[10px] text-gray-500 block">País emisor del documento</span>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormInput
+              label="Fecha de nacimiento"
+              type="date"
+              value={form.fecha_nacimiento}
+              onChange={(e) => setForm((f) => ({ ...f, fecha_nacimiento: e.target.value }))}
+            />
+            <FormInput
+              label="Teléfono de contacto"
+              type="tel"
+              value={form.telefono}
+              onChange={(e) => setForm((f) => ({ ...f, telefono: e.target.value }))}
+              placeholder="Ej: +57 300 123 4567"
+            />
+          </div>
 
           {formError && (
-            <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm text-primary-light">
+            <p className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-2.5 text-xs text-primary-light animate-fade-in">
               {formError}
             </p>
           )}
 
-          <div className="mt-2 flex justify-end gap-3">
+          <div className="mt-6 flex justify-end gap-3 border-t border-dark-border pt-4">
             <Button type="button" variant="secondary" onClick={() => setModalAbierto(false)}>
               Cancelar
             </Button>
-            <Button type="submit" isLoading={guardando}>
-              {editando ? 'Guardar cambios' : 'Crear pasajero'}
+            <Button type="submit" isLoading={guardando} className="shadow-lg shadow-primary/20 hover:shadow-primary/30">
+              {editando ? 'Guardar cambios' : 'Crear perfil'}
             </Button>
           </div>
         </form>
