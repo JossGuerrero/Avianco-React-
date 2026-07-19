@@ -89,7 +89,6 @@ export function PerfilPage() {
         )}
       </section>
 
-      {/* Itinerario: Reserva + CheckIn + Factura + Vuelo en una sola vista */}
       <ProximosViajes />
     </div>
   );

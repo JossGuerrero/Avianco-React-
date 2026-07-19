@@ -4,6 +4,7 @@ import { useCaseFactory } from '../../../infrastructure/factories/repository.fac
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
 import { labelReserva } from '../../utils/labels';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function EquipajesPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -12,6 +13,9 @@ export function EquipajesPage() {
   return (
     <CrudPage
       titulo="Equipajes"
+      destacado="Equipajes"
+      descripcion="Control de maletas, peso permitido y tipo de equipaje por reserva"
+      imagenHero={AVIATION_IMAGES.equipajes}
       nombreEntidad="equipaje"
       useCases={useCaseFactory.equipajes}
       puedeMutar={isStaff}

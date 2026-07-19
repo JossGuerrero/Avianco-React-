@@ -66,7 +66,6 @@ export function CheckoutPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Selecciones
   const [pasajeroId, setPasajeroId] = useState('');
   const [asientoSel, setAsientoSel] = useState('');
   const [metodoId, setMetodoId] = useState('');
@@ -77,7 +76,6 @@ export function CheckoutPage() {
   const [promoAplicada, setPromoAplicada] = useState<Promocion | null>(null);
   const [errorPromo, setErrorPromo] = useState<string | null>(null);
 
-  // Creación rápida de pasajero
   const [creandoPasajero, setCreandoPasajero] = useState(false);
   const [nuevoPasajero, setNuevoPasajero] = useState({
     numero_pasaporte: '',
@@ -88,7 +86,6 @@ export function CheckoutPage() {
   const [errorPasajero, setErrorPasajero] = useState<string | null>(null);
   const [guardandoPasajero, setGuardandoPasajero] = useState(false);
 
-  // Proceso de compra
   const [pasos, setPasos] = useState<Paso[]>([]);
   const [comprando, setComprando] = useState(false);
   const [errorCompra, setErrorCompra] = useState<string | null>(null);
@@ -116,7 +113,6 @@ export function CheckoutPage() {
         ]);
       setVuelo(vueloData);
       setPasajeros(pasajerosData);
-      // Se guardan todos (también ocupados): el mapa los pinta bloqueados.
       setAsientos(asientosData.filter((a) => a.vuelo === id));
       setReservasVuelo(reservasData.filter((r) => r.vuelo === id));
       setMetodos(metodosData.filter((m) => m.activo));
@@ -146,7 +142,6 @@ export function CheckoutPage() {
 
   const pasajeroSeleccionado = misPasajeros.find((p) => String(p.id) === pasajeroId);
 
-  // Asientos tomados por reservas activas de este vuelo (una cancelada libera el asiento).
   const codigosOcupados = useMemo(
     () =>
       new Set(
@@ -157,7 +152,6 @@ export function CheckoutPage() {
     [reservasVuelo],
   );
 
-  // Desglose en tiempo real: tarifa − descuento + servicios + impuestos 12%.
   const desglose: DesgloseCarrito = useMemo(() => {
     const precioVuelo = Number(vuelo?.precio ?? 0);
     const descuento = promoAplicada
@@ -272,7 +266,6 @@ export function CheckoutPage() {
       { clave: 'asiento', nombre: 'Bloquear asiento', estado: 'pendiente' },
     ]);
 
-    // Paso 1: reserva
     let reserva: Reserva;
     try {
       reserva = await useCaseFactory.reservas.create({
@@ -289,7 +282,6 @@ export function CheckoutPage() {
       return;
     }
 
-    // Paso 2: servicios adicionales (POST /reserva-servicios/ por cada chip)
     let serviciosOk: Servicio[] = [];
     if (serviciosElegidos.length > 0) {
       const resultados = await Promise.allSettled(
@@ -314,7 +306,6 @@ export function CheckoutPage() {
       }
     }
 
-    // Paso 3: equipaje opcional (POST /equipajes/)
     let equipajeRegistrado = false;
     if (equipajeTipo) {
       try {
@@ -331,7 +322,6 @@ export function CheckoutPage() {
       }
     }
 
-    // Totales reales según lo que sí quedó registrado (mismo cálculo del desglose).
     const precioVuelo = Number(vuelo.precio);
     const descuentoReal = promoAplicada
       ? round2((precioVuelo * porcentajeDescuento(promoAplicada)) / 100)
@@ -342,7 +332,6 @@ export function CheckoutPage() {
     const impuestosReales = round2(subtotal * TASA_IMPUESTOS);
     const totalReal = round2(subtotal + impuestosReales);
 
-    // Paso 4: pago por el total con todo incluido
     try {
       await useCaseFactory.pagos.create({
         reserva: reserva.id,
@@ -361,7 +350,6 @@ export function CheckoutPage() {
       return;
     }
 
-    // Paso 5: factura con el desglose real
     let factura: Factura | null = null;
     try {
       factura = await useCaseFactory.facturas.create({
@@ -378,14 +366,12 @@ export function CheckoutPage() {
       );
     }
 
-    // Paso 6 (opcional): marcar asiento como no disponible si venía del catálogo
     const asientoCatalogo = asientos.find((a) => a.codigo.toUpperCase() === codigoAsiento);
     if (asientoCatalogo) {
       try {
         await useCaseFactory.asientos.update(asientoCatalogo.id, { disponible: false });
         marcarPaso('asiento', 'ok', codigoAsiento);
       } catch {
-        // Los usuarios normales no siempre pueden editar asientos: no es fatal.
         marcarPaso('asiento', 'error', 'El asiento no se pudo bloquear (permisos), la reserva sigue válida');
       }
     } else {
@@ -402,7 +388,6 @@ export function CheckoutPage() {
     setComprando(false);
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
 
   if (cargando) {
     return (
@@ -427,7 +412,6 @@ export function CheckoutPage() {
     );
   }
 
-  // Pantalla de éxito
   if (resultado) {
     return (
       <div className="mx-auto max-w-xl animate-fade-in">
@@ -482,8 +466,6 @@ export function CheckoutPage() {
     );
   }
 
-  // Un vuelo que ya no está programado (cancelado, abordando, despegado…)
-  // no admite nuevas reservas: se corta antes de mostrar el formulario.
   if (vuelo.estado !== EstadoVuelo.Programado) {
     return (
       <div className="mx-auto max-w-3xl animate-fade-in">
@@ -510,7 +492,6 @@ export function CheckoutPage() {
         Finalizar <span className="text-primary">compra</span>
       </h1>
 
-      {/* Resumen del vuelo */}
       <div className="mt-6 rounded-2xl border border-dark-border bg-dark-surface p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -528,9 +509,7 @@ export function CheckoutPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-        {/* Formulario */}
         <div className="space-y-4 rounded-2xl border border-dark-border bg-dark-surface p-5">
-          {/* Pasajero */}
           {sinPasajero && !creandoPasajero ? (
             <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-300">
               Aún no tienes perfil de pasajero.{' '}
@@ -610,7 +589,6 @@ export function CheckoutPage() {
             </div>
           )}
 
-          {/* Mapa de asientos */}
           <SeatMapSelector
             capacidad={vuelo.aeronave_detalle?.capacidad ?? CAPACIDAD_FALLBACK}
             asientos={asientos}
@@ -619,7 +597,6 @@ export function CheckoutPage() {
             onChange={setAsientoSel}
           />
 
-          {/* Método de pago */}
           <FormSelect
             label="Método de pago"
             value={metodoId}
@@ -634,7 +611,6 @@ export function CheckoutPage() {
           )}
         </div>
 
-        {/* Carrito con servicios y equipaje */}
         <CarritoResumen
           vuelo={vuelo}
           asiento={asientoSel}
@@ -667,7 +643,6 @@ export function CheckoutPage() {
         </p>
       )}
 
-      {/* Progreso de los pasos (visible durante/después del intento) */}
       {pasos.length > 0 && (
         <ol className="mt-4 space-y-2 rounded-2xl border border-dark-border bg-dark-surface p-5 animate-fade-in">
           {pasos.map((paso) => (

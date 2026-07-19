@@ -10,6 +10,8 @@ import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
+import { PageHero } from '../../components/PageHero';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 import { getErrorMessage } from '../../utils/formatters';
 
 interface NotificacionForm {
@@ -55,7 +57,6 @@ export function NotificacionesPage() {
     cargar();
   }, [cargar]);
 
-  // Usuario normal solo ve las suyas; staff ve todas.
   const visibles = useMemo(
     () => (isStaff ? notificaciones : notificaciones.filter((n) => n.usuario === user?.id)),
     [notificaciones, isStaff, user],
@@ -135,13 +136,29 @@ export function NotificacionesPage() {
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          <span className="text-primary">Notificaciones</span>
-        </h1>
-        {isStaff && <Button onClick={abrirCrear}>+ Nueva notificación</Button>}
-      </div>
+    <div className="space-y-6">
+      <PageHero
+        titulo="Notificaciones"
+        destacado="Notificaciones"
+        subtitulo={
+          isStaff
+            ? 'Envía alertas operativas y mensajes a los usuarios del sistema'
+            : 'Revisa avisos de vuelos, reservas y cambios importantes'
+        }
+        imagen={AVIATION_IMAGES.notificaciones}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.notificaciones)}
+        accion={
+          <div className="flex flex-wrap items-center gap-3">
+            {visibles.length > 0 && (
+              <span className="rounded-full border border-white/20 bg-black/40 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+                {visibles.filter((n) => !n.leida).length} sin leer
+              </span>
+            )}
+            {isStaff && <Button onClick={abrirCrear}>+ Nueva notificación</Button>}
+          </div>
+        }
+        compacto
+      />
 
       {error && (
         <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
