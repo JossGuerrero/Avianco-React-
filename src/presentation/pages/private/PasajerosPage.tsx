@@ -187,32 +187,102 @@ export function PasajerosPage() {
       )}
 
       <div className="mt-6">
-        <DataTable
-          columns={columnas}
-          data={visibles}
-          getRowId={(p) => p.id}
-          loading={loading}
-          emptyMessage="No hay pasajeros registrados"
-          pagination={{
-            page,
-            hasNext: paginacion.hasNext,
-            hasPrevious: paginacion.hasPrevious,
-            count: isStaff ? paginacion.count : undefined,
-            onPageChange: setPage,
-          }}
-          actions={(pasajero) => (
-            <>
-              <Button variant="secondary" onClick={() => abrirEditar(pasajero)}>
-                Editar
-              </Button>
-              {isStaff && (
+        {loading ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="animate-pulse rounded-3xl border border-dark-border bg-dark-surface p-6 h-52" />
+            ))}
+          </div>
+        ) : visibles.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-dark-border bg-dark-surface/50 p-12 text-center">
+            <svg className="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <h3 className="mt-4 text-lg font-bold text-white">No hay viajeros registrados</h3>
+            <p className="mt-1 text-sm text-gray-400">Registra un viajero para comenzar a reservar tus vuelos.</p>
+            <Button onClick={abrirCrear} className="mt-4">Registrar primer viajero</Button>
+          </div>
+        ) : !isStaff ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {visibles.map((pasajero) => (
+              <div 
+                key={pasajero.id} 
+                className="relative overflow-hidden rounded-3xl border border-dark-border bg-gradient-to-br from-dark-surface to-dark p-6 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/55 hover:shadow-lg hover:shadow-primary/5"
+              >
+                {/* Decoración superior derecha estilo chip */}
+                <div className="absolute right-6 top-6 flex h-8 w-12 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+                  <svg className="h-4 w-4 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2.945M18 5.5a2.5 2.5 0 012.5 2.5v.5a2.5 2.5 0 01-2.5 2.5h-1.5a2.5 2.5 0 00-2.5 2.5v1.5a2.5 2.5 0 01-2.5 2.5H13" />
+                  </svg>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Pasaporte de Viajero</span>
+                    <h3 className="text-xl font-bold text-white mt-0.5 truncate">{pasajero.nombre_completo || 'Sin nombre asignado'}</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-xs border-t border-dark-border/60 pt-4">
+                    <div>
+                      <p className="text-gray-500 font-medium">Nro. Pasaporte</p>
+                      <p className="font-mono text-white mt-0.5 font-bold tracking-wider">{pasajero.numero_pasaporte}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 font-medium">Nacionalidad</p>
+                      <p className="text-white mt-0.5 font-semibold">{pasajero.nacionalidad}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 font-medium">Nacimiento</p>
+                      <p className="text-white mt-0.5 font-semibold">{formatFechaCorta(pasajero.fecha_nacimiento)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500 font-medium">Teléfono</p>
+                      <p className="text-white mt-0.5 font-semibold truncate">{pasajero.telefono || '—'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 border-t border-dark-border/60 pt-4 mt-2">
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => abrirEditar(pasajero)}
+                      className="w-full text-xs py-1.5 h-auto flex items-center justify-center gap-1.5"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      Editar Perfil
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <DataTable
+            columns={columnas}
+            data={visibles}
+            getRowId={(p) => p.id}
+            loading={loading}
+            emptyMessage="No hay pasajeros registrados"
+            pagination={{
+              page,
+              hasNext: paginacion.hasNext,
+              hasPrevious: paginacion.hasPrevious,
+              count: paginacion.count,
+              onPageChange: setPage,
+            }}
+            actions={(pasajero) => (
+              <>
+                <Button variant="secondary" onClick={() => abrirEditar(pasajero)}>
+                  Editar
+                </Button>
                 <Button variant="danger" onClick={() => eliminar(pasajero)}>
                   Eliminar
                 </Button>
-              )}
-            </>
-          )}
-        />
+              </>
+            )}
+          />
+        )}
       </div>
 
       <Modal
