@@ -138,56 +138,58 @@ export function CarritoResumen({
       )}
 
       {/* Equipaje opcional */}
-      <div className="mt-4 space-y-3 border-t border-dark-border pt-4">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">
-          Equipaje (opcional)
+      <div className="space-y-3 border-t border-dark-border/60 pt-4">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+          Equipaje de Vuelo (Opcional)
         </h3>
-        <FormSelect
-          label="Tipo de equipaje"
-          value={equipajeTipo}
-          onChange={(e) => onEquipajeTipo(e.target.value as TipoEquipaje | '')}
-          placeholder="Sin equipaje adicional"
-          options={Object.values(TipoEquipaje).map((tipo) => ({ value: tipo, label: tipo }))}
-        />
-        {equipajeTipo && (
-          <FormInput
-            label="Peso (kg)"
-            type="number"
-            min={0.1}
-            step="0.1"
-            value={equipajePeso}
-            onChange={(e) => onEquipajePeso(e.target.value)}
-            placeholder="Ej: 23"
+        <div className="bg-dark/20 p-3 rounded-2xl border border-dark-border/40 space-y-3">
+          <FormSelect
+            label="Tipo de equipaje"
+            value={equipajeTipo}
+            onChange={(e) => onEquipajeTipo(e.target.value as TipoEquipaje | '')}
+            placeholder="Sin equipaje adicional"
+            options={Object.values(TipoEquipaje).map((tipo) => ({ value: tipo, label: tipo }))}
           />
-        )}
+          {equipajeTipo && (
+            <FormInput
+              label="Peso estimado (kg)"
+              type="number"
+              min={0.1}
+              step="0.1"
+              value={equipajePeso}
+              onChange={(e) => onEquipajePeso(e.target.value)}
+              placeholder="Ej: 23"
+            />
+          )}
+        </div>
       </div>
 
       {/* Código promocional */}
-      <div className="mt-4 border-t border-dark-border pt-4">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">
-          Código promocional
+      <div className="space-y-2 border-t border-dark-border/60 pt-4">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+          ¿Tienes un cupón de descuento?
         </h3>
         {promoAplicada ? (
-          <div className="mt-2 flex items-center justify-between rounded-lg border border-green-500/40 bg-green-500/10 px-3 py-2 text-sm">
-            <span className="font-semibold text-green-300">
-              {promoAplicada.codigo} · −{porcentajeDescuento(promoAplicada)}%
+          <div className="flex items-center justify-between rounded-xl border border-green-500/35 bg-green-500/5 px-3 py-2 text-xs">
+            <span className="font-bold text-green-400">
+              Activo: {promoAplicada.codigo} ({porcentajeDescuento(promoAplicada)}% desc.)
             </span>
             <button
               type="button"
               onClick={onQuitarPromo}
-              className="text-xs text-gray-400 transition-colors hover:text-white"
+              className="text-[10px] text-gray-400 hover:text-white underline font-semibold"
             >
               Quitar
             </button>
           </div>
         ) : (
-          <div className="mt-2 flex items-end gap-2">
+          <div className="flex items-end gap-2">
             <div className="flex-1">
               <FormInput
-                label="Código"
+                label="Código de descuento"
                 value={codigoPromo}
                 onChange={(e) => onCodigoPromo(e.target.value)}
-                placeholder="Ej: VERANO26"
+                placeholder="Ej: DESPEGAR26"
               />
             </div>
             <Button
@@ -195,49 +197,55 @@ export function CarritoResumen({
               variant="secondary"
               disabled={!codigoPromo.trim()}
               onClick={onAplicarPromo}
+              className="h-[38px] px-4 text-xs font-bold"
             >
               Aplicar
             </Button>
           </div>
         )}
-        {errorPromo && <p className="mt-2 text-xs text-primary-light">{errorPromo}</p>}
+        {errorPromo && <p className="text-[10px] text-primary-light font-semibold pl-1">{errorPromo}</p>}
       </div>
 
-      {/* Desglose en tiempo real */}
-      <dl className="mt-4 space-y-2 border-t border-dark-border pt-4 text-sm">
-        <div className="flex justify-between">
-          <dt className="text-gray-400">Tarifa del vuelo</dt>
-          <dd className="text-white">{formatPrecio(desglose.precioVuelo)}</dd>
-        </div>
-        {desglose.descuento > 0 && promoAplicada && (
+      {/* Desglose en tiempo real - Apariencia de recibo físico */}
+      <div className="border-t border-dashed border-dark-border/60 pt-4">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">
+          Desglose de Tarifas
+        </h3>
+        <dl className="space-y-2 text-xs rounded-2xl bg-dark/20 p-4 border border-dark-border/40">
           <div className="flex justify-between">
-            <dt className="text-gray-400">Descuento ({promoAplicada.codigo})</dt>
-            <dd className="text-green-300">−{formatPrecio(desglose.descuento)}</dd>
+            <dt className="text-gray-400 font-medium">Tarifa base del vuelo</dt>
+            <dd className="text-white font-semibold">{formatPrecio(desglose.precioVuelo)}</dd>
           </div>
-        )}
-        {seleccionados.map((servicio) => (
-          <div key={servicio.id} className="flex justify-between">
-            <dt className="truncate pr-2 text-gray-400">+ {servicio.nombre}</dt>
-            <dd className="text-white">{formatPrecio(servicio.precio)}</dd>
+          {desglose.descuento > 0 && promoAplicada && (
+            <div className="flex justify-between">
+              <dt className="text-gray-400 font-medium">Descuento ({promoAplicada.codigo})</dt>
+              <dd className="text-green-400 font-bold">−{formatPrecio(desglose.descuento)}</dd>
+            </div>
+          )}
+          {seleccionados.map((servicio) => (
+            <div key={servicio.id} className="flex justify-between animate-fade-in">
+              <dt className="truncate pr-2 text-gray-400 font-medium">+ {servicio.nombre}</dt>
+              <dd className="text-white font-semibold">{formatPrecio(servicio.precio)}</dd>
+            </div>
+          ))}
+          <div className="flex justify-between">
+            <dt className="text-gray-400 font-medium">Impuestos tasas (12%)</dt>
+            <dd className="text-white font-semibold">{formatPrecio(desglose.impuestos)}</dd>
           </div>
-        ))}
-        <div className="flex justify-between">
-          <dt className="text-gray-400">Impuestos (12%)</dt>
-          <dd className="text-white">{formatPrecio(desglose.impuestos)}</dd>
-        </div>
-        <div className="flex justify-between border-t border-dark-border pt-2">
-          <dt className="font-bold text-white">Total</dt>
-          <dd className="text-lg font-black text-primary-light">{formatPrecio(desglose.total)}</dd>
-        </div>
-      </dl>
+          <div className="flex justify-between border-t border-dashed border-dark-border/60 pt-3 mt-1">
+            <dt className="font-extrabold text-white text-sm uppercase">Total a pagar</dt>
+            <dd className="text-xl font-black text-primary-light tracking-wide">{formatPrecio(desglose.total)}</dd>
+          </div>
+        </dl>
+      </div>
 
       <Button
-        className="mt-4 w-full"
+        className="w-full shadow-lg shadow-primary/20 hover:shadow-primary/35 transition-all duration-300 py-3 text-sm font-bold mt-2"
         isLoading={comprando}
         disabled={deshabilitado}
         onClick={onConfirmar}
       >
-        Confirmar y pagar
+        Finalizar Pago y Reserva
       </Button>
     </aside>
   );
