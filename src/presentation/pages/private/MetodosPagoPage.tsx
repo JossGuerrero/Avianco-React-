@@ -3,6 +3,7 @@ import { Badge } from '../../components/Badge';
 import { TipoMetodoPago } from '../../../domain/enums/TipoMetodoPago';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function MetodosPagoPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -10,6 +11,9 @@ export function MetodosPagoPage() {
   return (
     <CrudPage
       titulo="Métodos de pago"
+      destacado="pago"
+      descripcion="Configura tarjetas, transferencias y medios de cobro activos"
+      imagenHero={AVIATION_IMAGES.metodosPago}
       nombreEntidad="método de pago"
       useCases={useCaseFactory.metodosPago}
       puedeMutar={isStaff}

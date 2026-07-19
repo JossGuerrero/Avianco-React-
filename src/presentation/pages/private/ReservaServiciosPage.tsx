@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
 import { labelReserva } from '../../utils/labels';
 import { formatPrecio } from '../../utils/formatters';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function ReservaServiciosPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -15,6 +16,9 @@ export function ReservaServiciosPage() {
   return (
     <CrudPage
       titulo="Servicios por reserva"
+      destacado="reserva"
+      descripcion="Vincula servicios extras a cada reserva con precio y cantidad"
+      imagenHero={AVIATION_IMAGES.reservaServicios}
       nombreEntidad="servicio de reserva"
       useCases={useCaseFactory.reservaServicios}
       puedeMutar={isStaff}

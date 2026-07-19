@@ -3,6 +3,7 @@ import { TipoServicio } from '../../../domain/enums/TipoServicio';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { formatPrecio } from '../../utils/formatters';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function ServiciosPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -10,6 +11,9 @@ export function ServiciosPage() {
   return (
     <CrudPage
       titulo="Servicios"
+      destacado="Servicios"
+      descripcion="Catálogo de servicios adicionales, complementos y extras de viaje"
+      imagenHero={AVIATION_IMAGES.servicios}
       nombreEntidad="servicio"
       useCases={useCaseFactory.servicios}
       puedeMutar={isStaff}

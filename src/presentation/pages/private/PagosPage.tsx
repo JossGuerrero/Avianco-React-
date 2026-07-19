@@ -13,6 +13,8 @@ import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
+import { PageHero } from '../../components/PageHero';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 import { formatPrecio, getErrorMessage } from '../../utils/formatters';
 
 interface PagoForm {
@@ -120,7 +122,6 @@ export function PagosPage() {
       setFormError('No se puede registrar un pago sobre una reserva cancelada');
       return;
     }
-    // Evita el doble cobro: una reserva con pago completado no admite otro.
     const pagoPrevio = pagos.find(
       (p) =>
         p.reserva === reservaId &&
@@ -177,14 +178,25 @@ export function PagosPage() {
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          {isStaff ? '' : 'Mis '}
-          <span className="text-primary">Pagos</span>
-        </h1>
-        {isStaff && <Button onClick={abrirCrear}>+ Nuevo pago</Button>}
-      </div>
+    <div className="space-y-6">
+      <PageHero
+        titulo={isStaff ? 'Pagos' : 'Mis pagos'}
+        destacado="Pagos"
+        subtitulo="Registro de transacciones, métodos de pago y estados de cobro"
+        imagen={AVIATION_IMAGES.pagos}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.pagos)}
+        accion={
+          <div className="flex flex-wrap items-center gap-3">
+            {pagosVisibles.length > 0 && (
+              <span className="rounded-full border border-white/20 bg-black/40 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+                {pagosVisibles.length} pagos
+              </span>
+            )}
+            {isStaff && <Button onClick={abrirCrear}>+ Nuevo pago</Button>}
+          </div>
+        }
+        compacto
+      />
 
       {error && (
         <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
