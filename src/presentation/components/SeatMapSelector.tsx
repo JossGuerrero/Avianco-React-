@@ -109,11 +109,19 @@ export function SeatMapSelector({
               <div key={i} className="flex items-center gap-1.5">
                 {fila.map((asiento, j) => {
                   const seleccionado = value === asiento.codigo;
-                  const clases = asiento.disponible
-                    ? seleccionado
-                      ? 'border-primary bg-primary text-white scale-110 shadow-lg shadow-primary/40'
-                      : 'border-green-500/40 bg-green-500/10 text-green-300 hover:bg-green-500/25 hover:scale-105'
-                    : 'cursor-not-allowed border-primary/25 bg-primary/10 text-primary-light/40';
+                  const esVIP = asiento.clase?.toUpperCase() === 'VIP' || asiento.clase?.toUpperCase() === 'PRIMERA';
+                  
+                  let clases = '';
+                  if (!asiento.disponible) {
+                    clases = 'cursor-not-allowed border-dark-border/40 bg-dark-surface/30 text-gray-600/40 line-through';
+                  } else if (seleccionado) {
+                    clases = 'border-primary bg-gradient-to-b from-primary-light to-primary text-white scale-110 shadow-md shadow-primary/30 ring-2 ring-primary-light/35';
+                  } else if (esVIP) {
+                    clases = 'border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500 hover:scale-105';
+                  } else {
+                    clases = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500 hover:scale-105';
+                  }
+
                   return (
                     <button
                       key={asiento.codigo}
@@ -122,10 +130,10 @@ export function SeatMapSelector({
                       onClick={() => onChange(seleccionado ? '' : asiento.codigo)}
                       title={
                         asiento.disponible
-                          ? `${asiento.codigo}${asiento.clase ? ` · ${asiento.clase}` : ''}`
-                          : `${asiento.codigo} · ocupado`
+                          ? `${asiento.codigo}${asiento.clase ? ` · Clase ${asiento.clase}` : ''}`
+                          : `${asiento.codigo} · Ocupado`
                       }
-                      className={`h-8 w-8 rounded-md border text-[10px] font-bold transition-all duration-150 ${clases} ${
+                      className={`h-8 w-8 rounded-lg border text-[10px] font-black transition-all duration-200 focus:outline-none ${clases} ${
                         j === mitad ? 'ml-5' : ''
                       }`}
                     >
