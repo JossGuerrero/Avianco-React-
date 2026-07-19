@@ -97,11 +97,11 @@ export function CarritoResumen({
 
       {/* Servicios adicionales */}
       {servicios.length > 0 && (
-        <div className="mt-4 border-t border-dark-border pt-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">
-            Servicios adicionales
+        <div className="space-y-2.5 border-t border-dark-border pt-4">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+            Servicios Extra Disponibles
           </h3>
-          <div className="mt-2 flex flex-wrap gap-2">
+          <div className="grid gap-2">
             {servicios.map((servicio) => {
               const activo = serviciosSel.includes(servicio.id);
               return (
@@ -110,13 +110,26 @@ export function CarritoResumen({
                   type="button"
                   onClick={() => onToggleServicio(servicio.id)}
                   title={servicio.descripcion}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition-all duration-150 ${
+                  className={`flex items-center justify-between rounded-2xl border p-3 text-left transition-all duration-200 ${
                     activo
-                      ? 'border-primary bg-primary/20 text-primary-light'
-                      : 'border-dark-border bg-dark text-gray-300 hover:border-primary/60 hover:text-white'
+                      ? 'border-primary/65 bg-primary/10 text-white'
+                      : 'border-dark-border bg-dark/30 text-gray-400 hover:border-dark-border/80 hover:text-white'
                   }`}
                 >
-                  {servicio.nombre} · {formatPrecio(servicio.precio)}
+                  <div className="flex flex-col pr-2">
+                    <span className="text-xs font-bold leading-tight">{servicio.nombre}</span>
+                    <span className="text-[9px] text-gray-500 mt-0.5 truncate max-w-[170px]">{servicio.descripcion}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs font-black text-primary-light">{formatPrecio(servicio.precio)}</span>
+                    <div className={`h-4 w-4 rounded-full border flex items-center justify-center transition-colors ${activo ? 'bg-primary border-primary' : 'border-dark-border'}`}>
+                      {activo && (
+                        <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
                 </button>
               );
             })}
