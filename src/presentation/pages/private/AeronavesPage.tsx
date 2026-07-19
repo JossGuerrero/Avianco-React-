@@ -6,6 +6,8 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { FormInput } from '../../components/FormInput';
+import { PageHero } from '../../components/PageHero';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 import { getErrorMessage } from '../../utils/formatters';
 
 interface AeronaveForm {
@@ -112,13 +114,16 @@ export function AeronavesPage() {
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          <span className="text-primary">Aeronaves</span>
-        </h1>
-        {isStaff && <Button onClick={abrirCrear}>+ Nueva aeronave</Button>}
-      </div>
+    <div className="space-y-6">
+      <PageHero
+        titulo="Flota de aeronaves"
+        destacado="aeronaves"
+        subtitulo="Administra matrículas, modelos y capacidad de la flota operativa"
+        imagen={AVIATION_IMAGES.aeronaves}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.aeronaves)}
+        accion={isStaff ? <Button onClick={abrirCrear}>+ Nueva aeronave</Button> : undefined}
+        compacto
+      />
 
       {error && (
         <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
@@ -126,7 +131,7 @@ export function AeronavesPage() {
         </p>
       )}
 
-      <div className="mt-6">
+      <div className="animate-fade-in">
         <DataTable
           columns={columnas}
           data={aeronaves}

@@ -2,6 +2,7 @@ import { CrudPage } from '../../components/CrudPage';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { PAISES } from '../../utils/paises';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function AerolineasPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -9,6 +10,9 @@ export function AerolineasPage() {
   return (
     <CrudPage
       titulo="Aerolíneas"
+      destacado="Aerolíneas"
+      descripcion="Catálogo de aerolíneas operadoras: códigos, países y sitios web"
+      imagenHero={AVIATION_IMAGES.aerolineas}
       nombreEntidad="aerolínea"
       useCases={useCaseFactory.aerolineas}
       puedeMutar={isStaff}

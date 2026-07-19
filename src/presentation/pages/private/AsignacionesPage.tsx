@@ -4,12 +4,12 @@ import { useCaseFactory } from '../../../infrastructure/factories/repository.fac
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
 import { labelVuelo } from '../../utils/labels';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function AsignacionesPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
   const vuelos = useLista(useCaseFactory.vuelos);
   const tripulantes = useLista(useCaseFactory.tripulacion);
-  // Copia de las asignaciones existentes para validar duplicados y solapes.
   const asignaciones = useLista(useCaseFactory.asignaciones);
   const vuelosPorId = useMemo(() => new Map(vuelos.map((v) => [v.id, v])), [vuelos]);
   const tripulantesPorId = useMemo(
@@ -20,6 +20,9 @@ export function AsignacionesPage() {
   return (
     <CrudPage
       titulo="Asignaciones de tripulación"
+      destacado="tripulación"
+      descripcion="Vincula tripulantes activos con vuelos programados, validando horarios y duplicados"
+      imagenHero={AVIATION_IMAGES.asignaciones}
       nombreEntidad="asignación"
       useCases={useCaseFactory.asignaciones}
       puedeMutar={isStaff}
@@ -77,7 +80,6 @@ export function AsignacionesPage() {
           return 'Ese tripulante ya está asignado a este vuelo';
         }
 
-        // Solape de horario: el tripulante no puede estar en dos vuelos a la vez.
         const vueloNuevo = vuelosPorId.get(vueloId);
         if (vueloNuevo) {
           const salidaNueva = new Date(vueloNuevo.fecha_salida).getTime();
