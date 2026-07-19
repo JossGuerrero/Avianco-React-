@@ -1,4 +1,3 @@
-// Lista estática de países comunes para el selector de nacionalidad.
 export const PAISES = [
   'Colombia',
   'México',

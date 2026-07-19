@@ -1,5 +1,3 @@
-// tsconfig usa erasableSyntaxOnly: los `enum` de TS no están permitidos,
-// por eso se modela como objeto const + tipo unión.
 export const EstadoVuelo = {
   Programado: 'programado',
   Abordando: 'abordando',

@@ -11,8 +11,6 @@ export class GetPromocionesUseCase {
 
   async execute(soloActivas = true): Promise<Promocion[]> {
     const promociones = await this.promocionRepository.getPromociones(soloActivas);
-    // El flag `activa` no considera fechas: una promo vencida con activa=true
-    // no debe mostrarse como utilizable.
     return soloActivas ? promociones.filter(promocionVigente) : promociones;
   }
 }

@@ -1,7 +1,6 @@
 import type { Vuelo } from '../../domain/entities/Vuelo';
 
 export interface FiltrosVuelo {
-  // Ids de aeropuerto como string ('' = cualquiera) y fecha YYYY-MM-DD.
   origen: string;
   destino: string;
   fecha: string;
@@ -13,7 +12,6 @@ export function hayFiltrosActivos(filtros: FiltrosVuelo): boolean {
   return Boolean(filtros.origen || filtros.destino || filtros.fecha);
 }
 
-// Filtro en cliente: respaldo cuando el backend no filtra por estos campos.
 export function filtrarVuelos(vuelos: Vuelo[], filtros: FiltrosVuelo): Vuelo[] {
   return vuelos.filter((vuelo) => {
     if (filtros.origen && String(vuelo.origen) !== filtros.origen) return false;
@@ -21,7 +19,6 @@ export function filtrarVuelos(vuelos: Vuelo[], filtros: FiltrosVuelo): Vuelo[] {
     if (filtros.fecha) {
       const salida = new Date(vuelo.fecha_salida);
       if (Number.isNaN(salida.getTime())) return false;
-      // Fecha local (la misma que ve el usuario en las cards).
       const fechaLocal = new Intl.DateTimeFormat('en-CA').format(salida);
       if (fechaLocal !== filtros.fecha) return false;
     }

@@ -13,7 +13,6 @@ import type { CrudUseCases } from '../common/CrudUseCases';
 
 export interface ResultadoCambioEstado {
   vuelo: Vuelo;
-  // Usuarios notificados (solo aplica al pasar a "abordando"; 0 en el resto).
   notificados: number;
 }
 
@@ -25,9 +24,6 @@ interface Dependencias {
   estadosVuelo: CrudUseCases<EstadoVueloRegistro, EstadoVueloRegistroInput>;
 }
 
-// Cambia el estado de un vuelo (PATCH /vuelos/{id}/), deja registro en el
-// historial (/estados-vuelo/) y, si el nuevo estado es "abordando", notifica
-// automáticamente a cada usuario con reserva confirmada en ese vuelo.
 export class CambiarEstadoVueloUseCase {
   private readonly deps: Dependencias;
 
@@ -42,7 +38,6 @@ export class CambiarEstadoVueloUseCase {
       vuelo.destino_detalle?.codigo_iata ?? `#${vuelo.destino}`
     }`;
 
-    // El historial alimenta el timeline del detalle; si falla no revierte el cambio.
     await this.deps.estadosVuelo
       .create({
         vuelo: vuelo.id,
@@ -59,7 +54,6 @@ export class CambiarEstadoVueloUseCase {
         mensaje: `El vuelo #${vuelo.id} (${ruta}) inició el abordaje. Dirígete a tu puerta de embarque.`,
       });
     } else if (nuevoEstado === EstadoVuelo.Cancelado) {
-      // Una cancelación jamás debe ser silenciosa para quien tiene reserva.
       notificados = await this.notificarPasajeros(vuelo, {
         tipo: TipoNotificacion.Cancelado,
         titulo: `Tu vuelo ${ruta} fue cancelado`,
@@ -82,7 +76,6 @@ export class CambiarEstadoVueloUseCase {
 
     const usuarioPorPasajero = new Map(pasajeros.map((p) => [p.id, p.usuario]));
 
-    // Un mismo usuario puede tener varios pasajeros en el vuelo: se notifica una vez.
     const usuarios = new Set<number>();
     for (const reserva of reservas) {
       if (reserva.vuelo !== vuelo.id || reserva.estado !== EstadoReserva.Confirmada) continue;
@@ -90,8 +83,6 @@ export class CambiarEstadoVueloUseCase {
       if (usuario) usuarios.add(usuario);
     }
 
-    // Anti-duplicados: si staff repite el cambio de estado por error, no se
-    // vuelve a notificar a quien ya recibió este mismo aviso de este vuelo.
     const marcaVuelo = `#${vuelo.id} `;
     const yaAvisados = new Set(
       existentes

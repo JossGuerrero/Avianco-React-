@@ -21,8 +21,6 @@ interface Viaje {
   puertaCodigo: string | null;
 }
 
-// Itinerario "Mi viaje": une Reserva + Vuelo + CheckIn + Factura para los
-// próximos vuelos del usuario (sus pasajeros, reservas no canceladas).
 export function ProximosViajes() {
   const user = useAuthStore((state) => state.user);
   const [viajes, setViajes] = useState<Viaje[]>([]);
@@ -53,7 +51,6 @@ export function ProximosViajes() {
           (r) => misPasajeros.has(r.pasajero) && r.estado !== EstadoReserva.Cancelada,
         );
 
-        // Vuelos que no llegaron en la lista (otra página de DRF): se piden por id.
         const vuelosPorId = new Map(vuelos.map((v) => [v.id, v]));
         const faltantes = [...new Set(misReservas.map((r) => r.vuelo))].filter(
           (id) => !vuelosPorId.has(id),
@@ -144,7 +141,6 @@ export function ProximosViajes() {
             key={reserva.id}
             className="rounded-2xl border border-dark-border bg-dark-surface p-5"
           >
-            {/* Ruta y estado */}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xl font-black text-white">
                 {vuelo.origen_detalle?.codigo_iata ?? `#${vuelo.origen}`} →{' '}

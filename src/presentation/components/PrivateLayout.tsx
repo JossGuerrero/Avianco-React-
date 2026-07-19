@@ -142,7 +142,6 @@ export function PrivateLayout() {
     cargarNoLeidas();
   }, [cargarNoLeidas, location.pathname]);
 
-  // Cerrar el drawer móvil al cambiar de ruta
   useEffect(() => {
     setMenuAbierto(false);
   }, [location.pathname]);
@@ -159,7 +158,6 @@ export function PrivateLayout() {
 
   return (
     <div className="flex min-h-screen bg-dark text-white">
-      {/* Sidebar escritorio */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col border-r border-dark-border bg-dark-surface md:flex">
         <div className="flex items-center justify-between border-b border-dark-border px-4 py-5">
           <Link to="/" className="text-2xl font-black">
@@ -184,9 +182,7 @@ export function PrivateLayout() {
         </div>
       </aside>
 
-      {/* Contenido */}
       <div className="min-w-0 flex-1 md:ml-60">
-        {/* Barra superior móvil */}
         <header className="sticky top-0 z-30 border-b border-dark-border bg-dark-surface md:hidden">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
@@ -222,7 +218,6 @@ export function PrivateLayout() {
           </div>
         </header>
 
-        {/* Drawer móvil */}
         {menuAbierto && (
           <div
             className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm animate-fade-in md:hidden"

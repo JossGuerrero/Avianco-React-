@@ -26,8 +26,6 @@ export function HomePage() {
   const [vueloDetalle, setVueloDetalle] = useState<Vuelo | null>(null);
   const [filtros, setFiltros] = useState<FiltrosVuelo>(FILTROS_VACIOS);
 
-  // El GET público de /aeropuertos/ requiere token, así que las opciones del
-  // buscador se derivan de los vuelos ya cargados (traen *_detalle anidado).
   const opcionesAeropuertos = useMemo(() => {
     const mapa = new Map<number, string>();
     for (const vuelo of vuelos) {

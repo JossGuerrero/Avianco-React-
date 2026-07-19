@@ -2,7 +2,6 @@ import type { EstadoVuelo } from '../enums/EstadoVuelo';
 import type { Aeropuerto } from './Aeropuerto';
 import type { Aeronave } from './Aeronave';
 
-// Campos exactos de la API. Los detalles anidados solo vienen en las respuestas.
 export interface Vuelo {
   id: number;
   origen: number;

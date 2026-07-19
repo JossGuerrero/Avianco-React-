@@ -1,5 +1,3 @@
-// Cliente para flagcdn.com (nombres de países + banderas).
-// Se usa fetch nativo (no el axiosClient) para no enviar el token JWT a un tercero.
 
 export interface PaisFlag {
   codigo: string;
@@ -17,7 +15,6 @@ export async function getPaisesFlagcdn(): Promise<PaisFlag[]> {
 
   const data = (await respuesta.json()) as Record<string, string>;
   cache = Object.entries(data)
-    // flagcdn incluye subdivisiones tipo "us-ca"; solo queremos países.
     .filter(([codigo]) => !codigo.includes('-'))
     .map(([codigo, nombre]) => ({
       codigo,

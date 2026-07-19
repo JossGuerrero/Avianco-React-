@@ -1,8 +1,6 @@
 import axios from 'axios';
 import { ApiException } from '../../domain/exceptions/ApiException';
 
-// Extrae un mensaje legible de las respuestas de error de DRF:
-// {detail: "..."} o {campo: ["error1", "error2"], ...}
 function extraerDetalle(data: unknown): string | null {
   if (typeof data === 'string') return data;
   if (!data || typeof data !== 'object') return null;

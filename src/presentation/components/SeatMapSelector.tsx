@@ -2,12 +2,8 @@ import { useMemo } from 'react';
 import type { Asiento } from '../../domain/entities/Asiento';
 
 interface SeatMapSelectorProps {
-  // Capacidad de la aeronave del vuelo (aeronave_detalle.capacidad).
   capacidad: number;
-  // Asientos reales del vuelo (GET /asientos/?vuelo={id}); puede venir vacío.
   asientos: Asiento[];
-  // Códigos ya tomados por reservas activas (confirmada/embarcado): se pintan
-  // ocupados aunque el catálogo de asientos diga disponible o no exista.
   codigosOcupados?: Set<string>;
   value: string;
   onChange: (codigo: string) => void;
@@ -22,8 +18,6 @@ interface SeatCell {
 const COLUMNAS = ['A', 'B', 'C', 'D', 'E', 'F'];
 const MAX_FILAS_GENERADAS = 50;
 
-// Sin asientos en el catálogo se genera un mapa temporal visual a partir de
-// la capacidad: filas de 6 (A-F), todas disponibles.
 function generarMapaTemporal(capacidad: number): SeatCell[][] {
   const totalAsientos = Math.max(1, Math.min(capacidad, MAX_FILAS_GENERADAS * COLUMNAS.length));
   const filas: SeatCell[][] = [];
@@ -85,10 +79,7 @@ export function SeatMapSelector({
         </p>
       )}
 
-      {/* overflow-x contenido: en pantallas angostas el mapa hace scroll
-          horizontal dentro de su caja, sin desbordar la página. */}
       <div className="mt-2 max-h-72 overflow-x-auto overflow-y-auto rounded-xl border border-dark-border bg-dark p-4">
-        {/* Cabecera de la cabina */}
         <div className="mx-auto mb-3 h-2 w-24 rounded-full bg-dark-border" aria-hidden />
         <div className="mx-auto flex w-max flex-col items-center gap-1.5">
           {filas.map((fila, i) => {
@@ -127,7 +118,6 @@ export function SeatMapSelector({
         </div>
       </div>
 
-      {/* Leyenda */}
       <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-400">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded border border-green-500/40 bg-green-500/10" />

@@ -2,12 +2,10 @@ interface SkeletonProps {
   className?: string;
 }
 
-// Rectángulo gris pulsante para estados de carga.
 export function Skeleton({ className = '' }: SkeletonProps) {
   return <div className={`animate-pulse rounded-lg bg-dark-border/60 ${className}`} />;
 }
 
-// Tarjeta fantasma con la silueta de una VueloCard.
 export function SkeletonCard() {
   return (
     <div className="rounded-2xl border border-dark-border bg-dark-surface p-6">

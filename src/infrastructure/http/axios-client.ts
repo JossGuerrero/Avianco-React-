@@ -20,8 +20,6 @@ axiosClient.interceptors.response.use(
   (error: unknown) => {
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       const isAuthEndpoint = error.config?.url?.includes('/auth/') ?? false;
-      // Solo expulsar a /login si había una sesión activa (token expirado).
-      // Un 401 en páginas públicas sin sesión no debe redirigir.
       const habiaSesion = localTokenStorage.getToken() !== null;
       if (!isAuthEndpoint && habiaSesion) {
         localTokenStorage.clear();

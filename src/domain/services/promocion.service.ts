@@ -1,7 +1,5 @@
 import type { Promocion } from '../entities/Promocion';
 
-// Una promoción es utilizable si está activa Y dentro de su ventana de fechas.
-// (El flag `activa` por sí solo no basta: puede quedar en true tras vencer.)
 export function promocionVigente(promocion: Promocion): boolean {
   if (!promocion.activa) return false;
   const ahora = Date.now();
@@ -12,7 +10,6 @@ export function promocionVigente(promocion: Promocion): boolean {
   return true;
 }
 
-// Descuento como porcentaje 0-100 saneado.
 export function porcentajeDescuento(promocion: Promocion): number {
   const pct = Number(promocion.descuento);
   if (Number.isNaN(pct) || pct <= 0) return 0;

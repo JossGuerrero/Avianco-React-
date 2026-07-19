@@ -38,17 +38,14 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Rutas públicas */}
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Rutas privadas (requieren token) */}
         <Route element={<PrivateRoute />}>
           <Route element={<PrivateLayout />}>
             <Route path="/dashboard" element={<DashboardPage />} />
 
-            {/* Operaciones */}
             <Route path="/vuelos" element={<VuelosPage />} />
             <Route path="/checkout/:vueloId" element={<CheckoutPage />} />
             <Route path="/reservas" element={<ReservasPage />} />
@@ -58,20 +55,16 @@ export function AppRouter() {
             <Route path="/equipajes" element={<EquipajesPage />} />
             <Route path="/reserva-servicios" element={<ReservaServiciosPage />} />
 
-            {/* Catálogos de lectura pública */}
             <Route path="/aeropuertos" element={<AeropuertosPage />} />
             <Route path="/aeronaves" element={<AeronavesPage />} />
             <Route path="/servicios" element={<ServiciosPage />} />
 
-            {/* Finanzas */}
             <Route path="/facturas" element={<FacturasPage />} />
             <Route path="/pagos" element={<PagosPage />} />
 
-            {/* Mi cuenta */}
             <Route path="/perfil" element={<PerfilPage />} />
             <Route path="/notificaciones" element={<NotificacionesPage />} />
 
-            {/* Solo staff */}
             <Route element={<StaffRoute />}>
               <Route path="/tripulacion" element={<TripulacionPage />} />
               <Route path="/aerolineas" element={<AerolineasPage />} />

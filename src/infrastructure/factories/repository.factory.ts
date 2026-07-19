@@ -52,13 +52,10 @@ const authRepository = new AxiosAuthRepository();
 const vueloRepository = new AxiosVueloRepository();
 const promocionRepository = new AxiosPromocionRepository();
 
-// Para los recursos CRUD estándar el adaptador genérico basta:
-// solo cambia el endpoint y los tipos.
 function crud<T, TInput>(endpoint: string): CrudUseCases<T, TInput> {
   return new CrudUseCases<T, TInput>(new AxiosCrudRepository<T, TInput>(endpoint));
 }
 
-// Instancias compartidas entre la factory y los casos de uso compuestos.
 const vuelosUseCases = new CrudUseCases(vueloRepository);
 const reservasUseCases = new ReservaUseCases(new AxiosReservaRepository());
 const pasajerosUseCases = new CrudUseCases<Pasajero, PasajeroInput>(new AxiosPasajeroRepository());
@@ -66,12 +63,10 @@ const notificacionesUseCases = crud<Notificacion, NotificacionInput>('/notificac
 const estadosVueloUseCases = crud<EstadoVueloRegistro, EstadoVueloRegistroInput>('/estados-vuelo/');
 
 export const useCaseFactory = {
-  // Auth
   loginUseCase: new LoginUseCase(authRepository),
   registerUseCase: new RegisterUseCase(authRepository),
   logoutUseCase: new LogoutUseCase(authRepository),
 
-  // Vuelos y promociones
   getVuelosUseCase: new GetVuelosUseCase(vueloRepository),
   getPromocionesUseCase: new GetPromocionesUseCase(promocionRepository),
   vuelos: vuelosUseCases,
@@ -83,7 +78,6 @@ export const useCaseFactory = {
     estadosVuelo: estadosVueloUseCases,
   }),
 
-  // Módulos principales
   reservas: reservasUseCases,
   pasajeros: pasajerosUseCases,
   aeropuertos: new CrudUseCases<Aeropuerto, AeropuertoInput>(new AxiosAeropuertoRepository()),
@@ -93,7 +87,6 @@ export const useCaseFactory = {
   pagos: new CrudUseCases<Pago, PagoInput>(new AxiosPagoRepository()),
   metodosPago: new CrudUseCases<MetodoPago, MetodoPagoInput>(new AxiosMetodoPagoRepository()),
 
-  // Catálogos simples
   aerolineas: crud<Aerolinea, AerolineaInput>('/aerolineas/'),
   tiposAvion: crud<TipoAvion, TipoAvionInput>('/tipos-avion/'),
   tarifas: crud<Tarifa, TarifaInput>('/tarifas/'),
@@ -102,7 +95,6 @@ export const useCaseFactory = {
   terminales: crud<Terminal, TerminalInput>('/terminales/'),
   puertas: crud<Puerta, PuertaInput>('/puertas/'),
 
-  // Módulos operativos
   asientos: crud<Asiento, AsientoInput>('/asientos/'),
   checkins: crud<CheckIn, CheckInInput>('/checkins/'),
   servicios: crud<Servicio, ServicioInput>('/servicios/'),

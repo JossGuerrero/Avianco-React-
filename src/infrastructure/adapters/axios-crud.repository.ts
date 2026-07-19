@@ -3,7 +3,6 @@ import { unwrapList, type ListResponseDto } from '../../application/dtos/common.
 import { axiosClient } from '../http/axios-client';
 import { parseApiError } from '../http/api-error';
 
-// Implementación genérica sobre axios para los recursos CRUD estándar de la API.
 export class AxiosCrudRepository<T, TInput> implements CrudRepository<T, TInput> {
   protected readonly endpoint: string;
 

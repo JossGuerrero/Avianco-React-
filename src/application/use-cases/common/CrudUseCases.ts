@@ -1,7 +1,5 @@
 import type { CrudRepository, Page, QueryParams } from '../../../domain/ports/CrudRepository';
 
-// Casos de uso CRUD genéricos: cada módulo obtiene una instancia tipada
-// desde la factory (ver infrastructure/factories/repository.factory.ts).
 export class CrudUseCases<T, TInput> {
   protected readonly repository: CrudRepository<T, TInput>;
 

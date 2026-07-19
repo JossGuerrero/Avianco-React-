@@ -39,8 +39,6 @@ interface CarritoResumenProps {
   onConfirmar: () => void;
 }
 
-// Sidebar del checkout: resumen de la compra con servicios adicionales
-// (catálogo real de /servicios/) y equipaje opcional, sumando en tiempo real.
 export function CarritoResumen({
   vuelo,
   asiento,
@@ -72,7 +70,6 @@ export function CarritoResumen({
     <aside className="h-fit rounded-2xl border border-dark-border bg-dark-surface p-5">
       <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Tu carrito</h2>
 
-      {/* Resumen de selección */}
       <dl className="mt-3 space-y-1.5 text-sm">
         <div className="flex justify-between gap-2">
           <dt className="text-gray-400">Vuelo</dt>
@@ -88,7 +85,6 @@ export function CarritoResumen({
         </div>
       </dl>
 
-      {/* Servicios adicionales */}
       {servicios.length > 0 && (
         <div className="mt-4 border-t border-dark-border pt-4">
           <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">
@@ -117,7 +113,6 @@ export function CarritoResumen({
         </div>
       )}
 
-      {/* Equipaje opcional */}
       <div className="mt-4 space-y-3 border-t border-dark-border pt-4">
         <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">
           Equipaje (opcional)
@@ -142,7 +137,6 @@ export function CarritoResumen({
         )}
       </div>
 
-      {/* Código promocional */}
       <div className="mt-4 border-t border-dark-border pt-4">
         <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">
           Código promocional
@@ -183,7 +177,6 @@ export function CarritoResumen({
         {errorPromo && <p className="mt-2 text-xs text-primary-light">{errorPromo}</p>}
       </div>
 
-      {/* Desglose en tiempo real */}
       <dl className="mt-4 space-y-2 border-t border-dark-border pt-4 text-sm">
         <div className="flex justify-between">
           <dt className="text-gray-400">Tarifa del vuelo</dt>

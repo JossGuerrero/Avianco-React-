@@ -1,4 +1,3 @@
-// Formas exactas de los endpoints de auth del backend.
 
 export interface LoginRequestDto {
   username: string;

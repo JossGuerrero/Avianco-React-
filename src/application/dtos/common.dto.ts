@@ -1,4 +1,3 @@
-// Paginación DRF estándar: {count, next, previous, results}
 export interface PaginatedResponseDto<T> {
   count: number;
   next: string | null;

@@ -1,4 +1,3 @@
-// Paleta rojo-negro consistente con la app Flutter de Avianco.
 export const colors = {
   primary: '#D32F2F',
   primaryDark: '#B71C1C',

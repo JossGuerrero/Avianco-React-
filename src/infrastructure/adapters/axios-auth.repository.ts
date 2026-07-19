@@ -53,7 +53,6 @@ export class AxiosAuthRepository implements AuthRepository {
     } catch (error) {
       throw toAuthError(error, 'No se pudo completar el registro');
     }
-    // El registro no devuelve token: iniciamos sesión con las credenciales nuevas.
     return this.login({ username: data.username, password: data.password });
   }
 
@@ -65,7 +64,6 @@ export class AxiosAuthRepository implements AuthRepository {
         await axiosClient.post('/auth/logout/', body);
       }
     } catch {
-      // El logout local debe funcionar aunque el servidor falle.
     } finally {
       localTokenStorage.clear();
     }

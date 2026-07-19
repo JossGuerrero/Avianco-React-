@@ -9,8 +9,6 @@ interface PaisSelectProps {
   placeholder?: string;
 }
 
-// Combobox de países con buscador y banderas (flagcdn.com).
-// Si flagcdn no responde, cae a la lista estática sin banderas.
 export function PaisSelect({ label, value, onChange, placeholder = 'Busca un país...' }: PaisSelectProps) {
   const [paises, setPaises] = useState<PaisFlag[]>([]);
   const [busqueda, setBusqueda] = useState('');
@@ -33,7 +31,6 @@ export function PaisSelect({ label, value, onChange, placeholder = 'Busca un pa�
     };
   }, []);
 
-  // Cerrar al hacer click fuera del combobox
   useEffect(() => {
     function alClickFuera(evento: MouseEvent) {
       if (contenedorRef.current && !contenedorRef.current.contains(evento.target as Node)) {
