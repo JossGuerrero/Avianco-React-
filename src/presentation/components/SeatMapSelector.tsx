@@ -148,20 +148,34 @@ export function SeatMapSelector({
       </div>
 
       {/* Leyenda */}
-      <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-400">
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded border border-green-500/40 bg-green-500/10" />
-          Disponible
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded border border-primary/25 bg-primary/10" />
-          Ocupado
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded border border-primary bg-primary" />
-          Seleccionado
-        </span>
-        {value && <span className="ml-auto font-semibold text-white">Asiento: {value}</span>}
+      <div className="mt-3 rounded-xl border border-dark-border/50 bg-dark-surface/20 p-3">
+        <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-400">
+          <span className="flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-md border border-emerald-500/40 bg-emerald-500/10" />
+            Económico Libre
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-md border border-amber-500/40 bg-amber-500/10" />
+            VIP / Primera Clase
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-md border border-dark-border/40 bg-dark-surface/30 line-through" />
+            Ocupado
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-md border border-primary bg-gradient-to-b from-primary-light to-primary" />
+            Tu Selección
+          </span>
+        </div>
+
+        {value && (
+          <div className="mt-3 flex items-center justify-between border-t border-dark-border/50 pt-2.5 animate-fade-in">
+            <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Asiento Reservado:</span>
+            <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-0.5 text-xs font-black text-primary-light tracking-wide">
+              Fila/Columna: {value}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
