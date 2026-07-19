@@ -15,6 +15,8 @@ import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
+import { PageHero } from '../../components/PageHero';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 import { formatPrecio, getErrorMessage } from '../../utils/formatters';
 
 interface FacturaForm {
@@ -47,7 +49,6 @@ export function FacturasPage() {
   const [guardando, setGuardando] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Detalle de factura: reserva asociada + servicios + equipaje
   const [detalleFactura, setDetalleFactura] = useState<Factura | null>(null);
   const [detalleServicios, setDetalleServicios] = useState<ReservaServicio[]>([]);
   const [detalleEquipajes, setDetalleEquipajes] = useState<Equipaje[]>([]);
@@ -78,7 +79,6 @@ export function FacturasPage() {
     cargar();
   }, [cargar]);
 
-  // Reservas del usuario actual (para filtrar facturas propias si no es staff)
   const misReservaIds = useMemo(() => {
     if (isStaff) return null;
     const misPasajeros = new Set(
@@ -129,7 +129,6 @@ export function FacturasPage() {
       setFormError('No se puede emitir una factura sobre una reserva cancelada');
       return;
     }
-    // Una reserva no debe tener dos facturas vivas (la anulada no cuenta).
     const facturaPrevia = facturas.find(
       (f) =>
         f.reserva === reservaId &&
@@ -172,7 +171,6 @@ export function FacturasPage() {
           .getAll({ reserva: factura.reserva })
           .catch(() => [] as Equipaje[]),
       ]);
-      // Filtro en cliente por si el backend ignora el query param.
       setDetalleServicios(serviciosData.filter((s) => s.reserva === factura.reserva));
       setDetalleEquipajes(equipajesData.filter((e) => e.reserva === factura.reserva));
     } finally {
@@ -205,14 +203,25 @@ export function FacturasPage() {
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          {isStaff ? '' : 'Mis '}
-          <span className="text-primary">Facturas</span>
-        </h1>
-        {isStaff && <Button onClick={abrirCrear}>+ Nueva factura</Button>}
-      </div>
+    <div className="space-y-6">
+      <PageHero
+        titulo={isStaff ? 'Facturas' : 'Mis facturas'}
+        destacado="Facturas"
+        subtitulo="Emisión, seguimiento y detalle de facturación por reserva"
+        imagen={AVIATION_IMAGES.facturas}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.facturas)}
+        accion={
+          <div className="flex flex-wrap items-center gap-3">
+            {facturasVisibles.length > 0 && (
+              <span className="rounded-full border border-white/20 bg-black/40 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+                {facturasVisibles.length} facturas
+              </span>
+            )}
+            {isStaff && <Button onClick={abrirCrear}>+ Nueva factura</Button>}
+          </div>
+        }
+        compacto
+      />
 
       {error && (
         <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
@@ -308,7 +317,6 @@ export function FacturasPage() {
         </form>
       </Modal>
 
-      {/* Detalle completo: reserva + servicios + equipaje + desglose real */}
       {detalleFactura && (() => {
         const reserva = reservas.find((r) => r.id === detalleFactura.reserva);
         const pasajero = reserva
@@ -330,7 +338,6 @@ export function FacturasPage() {
               </p>
             </div>
 
-            {/* Reserva asociada */}
             <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
               Reserva asociada
             </h3>
@@ -365,7 +372,6 @@ export function FacturasPage() {
               </p>
             )}
 
-            {/* Servicios adicionales */}
             <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
               Servicios adicionales
             </h3>
@@ -392,7 +398,6 @@ export function FacturasPage() {
               </ul>
             )}
 
-            {/* Equipaje */}
             <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
               Equipaje
             </h3>
@@ -417,7 +422,6 @@ export function FacturasPage() {
               </ul>
             )}
 
-            {/* Desglose real */}
             <dl className="mt-5 space-y-2 rounded-xl border border-dark-border bg-dark p-4 text-sm">
               <div className="flex justify-between">
                 <dt className="text-gray-400">Subtotal (tarifa + servicios)</dt>

@@ -2,6 +2,7 @@ import { CrudPage } from '../../components/CrudPage';
 import { ClaseTarifa } from '../../../domain/enums/ClaseTarifa';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function TarifasPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -9,6 +10,9 @@ export function TarifasPage() {
   return (
     <CrudPage
       titulo="Tarifas"
+      destacado="Tarifas"
+      descripcion="Catálogo de tarifas, clases y descuentos aplicables a los vuelos"
+      imagenHero={AVIATION_IMAGES.tarifas}
       nombreEntidad="tarifa"
       useCases={useCaseFactory.tarifas}
       puedeMutar={isStaff}

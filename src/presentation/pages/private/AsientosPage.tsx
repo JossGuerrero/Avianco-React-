@@ -6,6 +6,7 @@ import { useCaseFactory } from '../../../infrastructure/factories/repository.fac
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
 import { labelVuelo } from '../../utils/labels';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function AsientosPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -15,6 +16,9 @@ export function AsientosPage() {
   return (
     <CrudPage
       titulo="Asientos"
+      destacado="Asientos"
+      descripcion="Disponibilidad por vuelo, fila, columna y clase de tarifa"
+      imagenHero={AVIATION_IMAGES.asientos}
       nombreEntidad="asiento"
       useCases={useCaseFactory.asientos}
       puedeMutar={isStaff}
