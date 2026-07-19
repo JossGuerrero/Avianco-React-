@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" fill="none">
+  <defs>
+    <linearGradient id="es-bg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="50%" stop-color="#3a1515"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#es-bg)"/>
+  <path d="M60 200 Q180 100 300 150 T520 110 T700 180" stroke="#ef5350" stroke-width="3" fill="none" stroke-dasharray="12 8" opacity="0.75"/>
+  <circle cx="60" cy="200" r="14" fill="#1a1a1a" stroke="#ef5350" stroke-width="3"/>
+  <circle cx="300" cy="150" r="12" fill="#1a1a1a" stroke="#ef5350" stroke-width="2.5" stroke-opacity="0.85"/>
+  <circle cx="520" cy="110" r="12" fill="#1a1a1a" stroke="#ef5350" stroke-width="2.5" stroke-opacity="0.85"/>
+  <circle cx="700" cy="180" r="14" fill="#d32f2f" stroke="#ef5350" stroke-width="3"/>
+  <text x="38" y="240" fill="#ef5350" font-family="monospace" font-size="14" font-weight="bold">BOG</text>
+  <text x="275" y="185" fill="#aaa" font-family="monospace" font-size="12">E1</text>
+  <text x="495" y="145" fill="#aaa" font-family="monospace" font-size="12">E2</text>
+  <text x="675" y="220" fill="#ef5350" font-family="monospace" font-size="14" font-weight="bold">MIA</text>
+  <g transform="translate(380 55)">
+    <path d="M0 18 L55 -2 L48 18 L65 22 L48 26 L55 46 L0 26 L14 22 Z" fill="#ef5350" fill-opacity="0.85"/>
+  </g>
+  <rect x="80" y="260" width="640" height="36" rx="8" fill="#252525" fill-opacity="0.8"/>
+  <text x="400" y="283" text-anchor="middle" fill="#888" font-family="sans-serif" font-size="12">Ruta multi-destino · 2 escalas intermedias</text>
+</svg>

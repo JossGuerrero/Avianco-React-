@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" fill="none">
+  <defs>
+    <linearGradient id="city" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1528"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#city)"/>
+  <rect x="80" y="140" width="60" height="180" fill="#2a2a2a"/>
+  <rect x="160" y="100" width="50" height="220" fill="#333"/>
+  <rect x="230" y="120" width="70" height="200" fill="#2a2a2a"/>
+  <rect x="320" y="80" width="55" height="240" fill="#3a3a3a"/>
+  <rect x="400" y="110" width="65" height="210" fill="#2a2a2a"/>
+  <rect x="490" y="90" width="45" height="230" fill="#333"/>
+  <rect x="560" y="130" width="80" height="190" fill="#2a2a2a"/>
+  <rect x="660" y="150" width="50" height="170" fill="#3a3a3a"/>
+  <rect x="100" y="160" width="15" height="15" fill="#ef5350" fill-opacity="0.6"/>
+  <rect x="340" y="120" width="12" height="12" fill="#ef5350" fill-opacity="0.5"/>
+  <rect x="580" y="170" width="14" height="14" fill="#ef5350" fill-opacity="0.4"/>
+  <g transform="translate(680 50)">
+    <path d="M0 18 L55 -2 L48 18 L65 22 L48 26 L55 46 L0 26 L14 22 Z" fill="#d32f2f" fill-opacity="0.8"/>
+  </g>
+</svg>
