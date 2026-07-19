@@ -6,18 +6,21 @@ import { useCaseFactory } from '../../../infrastructure/factories/repository.fac
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
 import { labelReserva } from '../../utils/labels';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function CheckInsPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
   const reservas = useLista(useCaseFactory.reservas);
   const puertas = useLista(useCaseFactory.puertas);
-  // Copia para validar que una reserva no tenga dos check-ins.
   const checkins = useLista(useCaseFactory.checkins);
   const puertasPorId = useMemo(() => new Map(puertas.map((p) => [p.id, p])), [puertas]);
 
   return (
     <CrudPage
       titulo="Check-ins"
+      destacado="Check-ins"
+      descripcion="Control de embarque, asignación de puertas y tarjetas de abordaje"
+      imagenHero={AVIATION_IMAGES.checkins}
       nombreEntidad="check-in"
       useCases={useCaseFactory.checkins}
       puedeMutar={isStaff}

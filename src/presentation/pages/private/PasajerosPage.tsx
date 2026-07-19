@@ -7,6 +7,8 @@ import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { FormInput } from '../../components/FormInput';
 import { PaisSelect } from '../../components/PaisSelect';
+import { PageHero } from '../../components/PageHero';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 import { formatFechaCorta, getErrorMessage } from '../../utils/formatters';
 
 interface PasajeroForm {
@@ -141,13 +143,25 @@ export function PasajerosPage() {
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          <span className="text-primary">Pasajeros</span>
-        </h1>
-        <Button onClick={abrirCrear}>+ Nuevo pasajero</Button>
-      </div>
+    <div className="space-y-6">
+      <PageHero
+        titulo="Pasajeros"
+        destacado="Pasajeros"
+        subtitulo="Registro de perfiles, pasaportes, nacionalidad y datos de contacto"
+        imagen={AVIATION_IMAGES.pasajeros}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.pasajeros)}
+        accion={
+          <div className="flex flex-wrap items-center gap-3">
+            {visibles.length > 0 && (
+              <span className="rounded-full border border-white/20 bg-black/40 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+                {isStaff ? paginacion.count : visibles.length} pasajeros
+              </span>
+            )}
+            <Button onClick={abrirCrear}>+ Nuevo pasajero</Button>
+          </div>
+        }
+        compacto
+      />
 
       {error && (
         <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">

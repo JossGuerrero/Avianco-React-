@@ -17,6 +17,8 @@ import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
+import { PageHero } from '../../components/PageHero';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 import { formatFecha, getErrorMessage } from '../../utils/formatters';
 
 interface ReservaForm {
@@ -86,7 +88,6 @@ export function ReservasPage() {
     cargar();
   }, [cargar]);
 
-  // Pasajeros del usuario actual (staff puede usar todos)
   const pasajerosDisponibles = useMemo(
     () => (isStaff ? pasajeros : pasajeros.filter((p) => p.usuario === user?.id)),
     [pasajeros, isStaff, user],
@@ -106,8 +107,6 @@ export function ReservasPage() {
     [checkins],
   );
 
-  // Check-in disponible: reserva confirmada de un vuelo que aún no salió
-  // (programado o abordando).
   function puedeHacerCheckin(reserva: Reserva): boolean {
     if (reserva.estado !== EstadoReserva.Confirmada) return false;
     const vuelo = vuelosPorId.get(reserva.vuelo);
@@ -168,7 +167,6 @@ export function ReservasPage() {
       setFormError(`El vuelo está "${vueloSel.estado}" y ya no admite reservas nuevas`);
       return;
     }
-    // Mismo asiento, mismo vuelo, reserva activa: duplicado.
     const asientoTomado = reservas.find(
       (r) =>
         r.vuelo === vueloId &&
@@ -210,14 +208,11 @@ export function ReservasPage() {
       return;
     try {
       await useCaseFactory.reservas.cancelar(reserva.id);
-      // El badge cambia de inmediato, sin recargar la tabla.
       setReservas((previas) =>
         previas.map((r) =>
           r.id === reserva.id ? { ...r, estado: EstadoReserva.Cancelada } : r,
         ),
       );
-      // Liberar el asiento del catálogo si estaba bloqueado (best effort:
-      // usuarios sin permiso de PATCH sobre asientos no rompen la cancelación).
       try {
         const asientosVuelo = await useCaseFactory.asientos.getAll({ vuelo: reserva.vuelo });
         const asiento = asientosVuelo.find(
@@ -230,10 +225,7 @@ export function ReservasPage() {
           await useCaseFactory.asientos.update(asiento.id, { disponible: true });
         }
       } catch {
-        // Sin permisos para editar asientos: la reserva igual quedó cancelada.
       }
-      // Pago y factura no deben quedar "completado"/"pagada" sobre una reserva
-      // cancelada: se marcan reembolsado/anulada (best effort, igual que arriba).
       try {
         const [facturas, pagos] = await Promise.all([
           useCaseFactory.facturas.getAll({ reserva: reserva.id }).catch(() => []),
@@ -248,7 +240,6 @@ export function ReservasPage() {
             .map((p) => useCaseFactory.pagos.update(p.id, { estado: EstadoPago.Reembolsado })),
         ]);
       } catch {
-        // Sin permisos sobre pagos/facturas: staff puede regularizarlo después.
       }
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudo cancelar la reserva'));
@@ -261,7 +252,6 @@ export function ReservasPage() {
     try {
       const creado = await useCaseFactory.checkins.create({
         reserva: reserva.id,
-        // La puerta la asigna staff después; queda "por asignar".
         puerta: null,
         tarjeta_embarque: `BP-${reserva.vuelo}-${reserva.id}-${reserva.asiento}`,
         estado: 'pendiente',
@@ -290,7 +280,6 @@ export function ReservasPage() {
     { header: 'Pasajero', render: (r) => labelPasajero(r.pasajero) },
     { header: 'Asiento', render: (r) => <span className="font-mono">{r.asiento}</span> },
     { header: 'Estado', render: (r) => <Badge estado={r.estado} /> },
-    // Check-in del cliente; staff lo gestiona desde su propio módulo.
     ...(!isStaff
       ? [
           {
@@ -330,16 +319,29 @@ export function ReservasPage() {
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          {isStaff ? 'Todas las ' : 'Mis '}
-          <span className="text-primary">reservas</span>
-        </h1>
-        {/* La creación manual (sin pago) es gestión administrativa: solo staff.
-            El cliente reserva únicamente por Vuelos → Reservar → checkout. */}
-        {isStaff && <Button onClick={abrirCrear}>+ Nueva reserva</Button>}
-      </div>
+    <div className="space-y-6">
+      <PageHero
+        titulo={isStaff ? 'Todas las reservas' : 'Mis reservas'}
+        destacado="reservas"
+        subtitulo={
+          isStaff
+            ? 'Gestiona reservas confirmadas, estados y asignación de asientos'
+            : 'Consulta tus viajes, realiza check-in y revisa el estado de cada reserva'
+        }
+        imagen={AVIATION_IMAGES.reservas}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.reservas)}
+        accion={
+          <div className="flex flex-wrap items-center gap-3">
+            {paginacion.count > 0 && (
+              <span className="rounded-full border border-white/20 bg-black/40 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+                {isStaff ? paginacion.count : reservasVisibles.length} reservas
+              </span>
+            )}
+            {isStaff && <Button onClick={abrirCrear}>+ Nueva reserva</Button>}
+          </div>
+        }
+        compacto
+      />
 
       {!isStaff && (
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
