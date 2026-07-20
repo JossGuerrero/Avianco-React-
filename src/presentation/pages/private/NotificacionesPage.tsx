@@ -1,30 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Notificacion } from '../../../domain/entities/Notificacion';
 import { TipoNotificacion } from '../../../domain/enums/TipoNotificacion';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificacionesStore } from '../../store/notificacionesStore';
-import { DataTable, type Column } from '../../components/DataTable';
-import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
-import { FormInput } from '../../components/FormInput';
-import { FormSelect } from '../../components/FormSelect';
 import { getErrorMessage } from '../../utils/formatters';
-
-interface NotificacionForm {
-  usuario: string;
-  tipo: TipoNotificacion;
-  titulo: string;
-  mensaje: string;
-}
-
-const FORM_VACIO: NotificacionForm = {
-  usuario: '',
-  tipo: TipoNotificacion.Info,
-  titulo: '',
-  mensaje: '',
-};
 
 export function NotificacionesPage() {
   const { user, isStaff } = useAuthStore();
@@ -34,10 +16,8 @@ export function NotificacionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [form, setForm] = useState<NotificacionForm>(FORM_VACIO);
-  const [guardando, setGuardando] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // Filtros
+  const [busqueda, setBusqueda] = useState<string>('');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -61,162 +41,182 @@ export function NotificacionesPage() {
     [notificaciones, isStaff, user],
   );
 
-  async function marcarLeida(notificacion: Notificacion) {
-    try {
-      await useCaseFactory.notificaciones.update(notificacion.id, { leida: true });
-      await cargar();
-      await cargarNoLeidas();
-    } catch (e) {
-      setError(getErrorMessage(e, 'No se pudo marcar como leída'));
-    }
-  }
-
-  async function eliminar(notificacion: Notificacion) {
-    if (!window.confirm(`¿Eliminar la notificación #${notificacion.id}?`)) return;
-    try {
-      await useCaseFactory.notificaciones.remove(notificacion.id);
-      await cargar();
-      await cargarNoLeidas();
-    } catch (e) {
-      setError(getErrorMessage(e, 'No se pudo eliminar la notificación'));
-    }
-  }
-
-  function abrirCrear() {
-    setForm(FORM_VACIO);
-    setFormError(null);
-    setModalAbierto(true);
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    const usuario = Number(form.usuario);
-    if (!usuario || !form.titulo.trim() || !form.mensaje.trim()) {
-      setFormError('Usuario, título y mensaje son obligatorios');
-      return;
-    }
-    setGuardando(true);
-    setFormError(null);
-    try {
-      await useCaseFactory.notificaciones.create({
-        usuario,
-        tipo: form.tipo,
-        titulo: form.titulo.trim(),
-        mensaje: form.mensaje.trim(),
-        leida: false,
-      });
-      setModalAbierto(false);
-      await cargar();
-      await cargarNoLeidas();
-    } catch (e) {
-      setFormError(getErrorMessage(e, 'No se pudo crear la notificación'));
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  const columnas: Column<Notificacion>[] = [
-    { header: 'Tipo', render: (n) => <Badge estado={n.tipo} /> },
-    {
-      header: 'Título',
-      render: (n) => (
-        <span className={n.leida ? 'text-gray-400' : 'font-semibold text-white'}>{n.titulo}</span>
-      ),
-    },
-    { header: 'Mensaje', render: (n) => <span className="text-gray-300">{n.mensaje}</span> },
-    { header: 'Estado', render: (n) => <Badge estado={n.leida ? 'leída' : 'no leída'} /> },
-  ];
-
-  if (isStaff) {
-    columnas.unshift({
-      header: 'Usuario',
-      render: (n) => <span className="text-gray-400">#{n.usuario}</span>,
+  // Filtrado por buscador
+  const filtradas = useMemo(() => {
+    return visibles.filter((n) => {
+      return (
+        n.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
+        n.mensaje.toLowerCase().includes(busqueda.toLowerCase()) ||
+        n.tipo.toLowerCase().includes(busqueda.toLowerCase()) ||
+        String(n.usuario).includes(busqueda)
+      );
     });
-  }
+  }, [visibles, busqueda]);
+
+  // Estadísticas del panel superior
+  const stats = useMemo(() => {
+    const totalCount = visibles.length;
+    const noLeidas = visibles.filter((n) => !n.leida).length;
+    const embarque = visibles.filter((n) => n.tipo === TipoNotificacion.Embarque).length;
+    const criticas = visibles.filter(
+      (n) => n.tipo === TipoNotificacion.Alerta || n.tipo === TipoNotificacion.Cancelado
+    ).length;
+
+    return {
+      totalCount,
+      noLeidas,
+      embarque,
+      criticas,
+    };
+  }, [visibles]);
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          <span className="text-primary">Notificaciones</span>
-        </h1>
-        {isStaff && <Button onClick={abrirCrear}>+ Nueva notificación</Button>}
+    <div className="relative space-y-8 animate-fade-in pb-12 text-left">
+      {/* Luces de Fondo Glassmorphic */}
+      <div className="absolute top-10 right-1/4 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Cabecera Principal */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.02 6.02 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Centro de Mensajería</span>
+            </div>
+            <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
+              Avisos de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Terminal</span>
+            </h1>
+            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+              {isStaff 
+                ? 'Monitorea las notificaciones enviadas, alertas críticas de vuelos retrasados y difunde avisos a pasajeros.'
+                : 'Consulta tus avisos de embarque, cambios de puerta y estados de vuelo actualizados al instante.'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {error && (
-        <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
+        <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-primary-light text-xs backdrop-blur-md">
           {error}
-        </p>
+        </div>
       )}
 
-      <div className="mt-6">
-        <DataTable
-          columns={columnas}
-          data={visibles}
-          getRowId={(n) => n.id}
-          loading={loading}
-          emptyMessage="No tienes notificaciones"
-          actions={(notificacion) => (
-            <>
-              {!notificacion.leida && notificacion.usuario === user?.id && (
-                <Button variant="secondary" onClick={() => marcarLeida(notificacion)}>
-                  Marcar leída
-                </Button>
-              )}
-              {isStaff && (
-                <Button variant="danger" onClick={() => eliminar(notificacion)}>
-                  Eliminar
-                </Button>
-              )}
-            </>
-          )}
-        />
-      </div>
+      {loading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-white/5 bg-white/5 h-28" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Tarjetas de Estadísticas (Efecto Espejo) */}
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Historial Total</span>
+              <div className="mt-1.5 text-xl font-black text-white">{stats.totalCount}</div>
+              <p className="mt-0.5 text-[10px] text-gray-400">Mensajes del canal</p>
+            </div>
 
-      <Modal open={modalAbierto} title="Nueva notificación" onClose={() => setModalAbierto(false)}>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormInput
-            label="ID de usuario destinatario"
-            type="number"
-            value={form.usuario}
-            onChange={(e) => setForm((f) => ({ ...f, usuario: e.target.value }))}
-            placeholder="Ej: 5"
-          />
-          <FormSelect
-            label="Tipo"
-            value={form.tipo}
-            onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as TipoNotificacion }))}
-            options={Object.values(TipoNotificacion).map((t) => ({ value: t, label: t }))}
-          />
-          <FormInput
-            label="Título"
-            value={form.titulo}
-            onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
-            placeholder="Ej: Cambio de puerta"
-          />
-          <FormInput
-            label="Mensaje"
-            value={form.mensaje}
-            onChange={(e) => setForm((f) => ({ ...f, mensaje: e.target.value }))}
-            placeholder="Contenido de la notificación"
-          />
+            <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-yellow-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-yellow-400 tracking-wider">No Leídas</span>
+              <div className="mt-1.5 text-xl font-black text-yellow-300 flex items-center gap-2">
+                {stats.noLeidas}
+                {stats.noLeidas > 0 && <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-ping" />}
+              </div>
+              <p className="mt-0.5 text-[10px] text-yellow-400">Pendientes de lectura</p>
+            </div>
 
-          {formError && (
-            <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm text-primary-light">
-              {formError}
-            </p>
-          )}
+            <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Embarques</span>
+              <div className="mt-1.5 text-xl font-black text-emerald-300">{stats.embarque}</div>
+              <p className="mt-0.5 text-[10px] text-emerald-400">Avisos de abordaje</p>
+            </div>
 
-          <div className="mt-2 flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setModalAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" isLoading={guardando}>
-              Enviar
-            </Button>
+            <div className="rounded-2xl border border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-rose-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-rose-400 tracking-wider">Críticas</span>
+              <div className="mt-1.5 text-xl font-black text-rose-300">{stats.criticas}</div>
+              <p className="mt-0.5 text-[10px] text-rose-400">Alertas y cancelaciones</p>
+            </div>
           </div>
-        </form>
-      </Modal>
+
+          {/* Renderizado de Vistas */}
+          {isStaff ? (
+            /* ================= VISTA STAFF: LISTADO DE CONTROL ================= */
+            <div className="border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/10 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Despacho de Mensajes</h2>
+                  <p className="text-xs text-gray-400">Notifica a los usuarios del sistema de cambios en tiempo real.</p>
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <input
+                    type="text"
+                    placeholder="Buscar por título, tipo..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
+                  />
+                  <Button size="small">
+                    + Emitir Alerta
+                  </Button>
+                </div>
+              </div>
+
+              {filtradas.length === 0 ? (
+                <div className="py-12 text-center text-xs text-gray-500">
+                  No se encontraron notificaciones emitidas.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/10 text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3 font-bold">Usuario</th>
+                        <th className="px-4 py-3 font-bold">Tipo</th>
+                        <th className="px-4 py-3 font-bold">Título</th>
+                        <th className="px-4 py-3 font-bold">Mensaje</th>
+                        <th className="px-4 py-3 font-bold">Estado</th>
+                        <th className="px-4 py-3 text-right font-bold">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtradas.map((n) => (
+                        <tr key={n.id} className="border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-all">
+                          <td className="px-4 py-3 text-gray-500">#{n.usuario}</td>
+                          <td className="px-4 py-3 capitalize">{n.tipo}</td>
+                          <td className="px-4 py-3 font-semibold text-white">{n.titulo}</td>
+                          <td className="px-4 py-3 text-stone-300 max-w-[200px] truncate">{n.mensaje}</td>
+                          <td className="px-4 py-3">
+                            <Badge estado={n.leida ? 'leída' : 'no leída'} />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ================= VISTA CLIENTE: FEED DE AVISOS ================= */
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-white tracking-wide">Mis Notificaciones</h2>
+              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
+                Cargando bandeja de entrada...
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
