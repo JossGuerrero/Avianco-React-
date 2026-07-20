@@ -176,22 +176,30 @@ export function AsientosPage() {
       <div className="absolute top-10 left-10 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-20 right-10 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Cabecera Principal */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+      {/* Cabecera Principal - Banner de Fondo Completo (Full-Bleed) */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/60 shadow-2xl h-80 sm:h-64 flex items-center p-6 sm:p-8">
+        {/* Foto de fondo completa */}
+        <div className="absolute inset-0 z-0 opacity-25 pointer-events-none blur-[1px]">
+          <img 
+            src="/seat_banner_1784573954523.png" 
+            alt="Seat Background Banner" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/90 to-transparent" />
+        </div>
         
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
-          <div>
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10 w-full text-left">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/30 px-3 py-1 text-xs font-semibold text-primary-light">
+              <svg className="h-4 w-4 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
-              <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Panel de Control de Aviones</span>
+              Configurador de Cabina
             </div>
-            <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
               Configurador de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Asientos de Vuelo</span>
             </h1>
-            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-400 max-w-xl leading-relaxed">
               Selecciona un vuelo para editar el mapa físico del avión en tiempo real. Configura asientos VIP o económicos y su disponibilidad de reserva.
             </p>
           </div>
