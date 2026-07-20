@@ -382,7 +382,7 @@ export function ReservasPage() {
       </div>
 
       {!isStaff && (
-        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-[#3d0b13]/40 backdrop-blur-md p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-5 animate-fade-in">
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-black/80 to-primary/5 backdrop-blur-md p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-5 animate-fade-in">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0 h-12 w-12 rounded-full overflow-hidden border border-primary/30 shadow-inner">
               <img src="/flight_attendant.png" alt="Asistente de Vuelo" className="h-full w-full object-cover" />
@@ -473,7 +473,7 @@ export function ReservasPage() {
               return (
                 <div 
                   key={reserva.id}
-                  className="relative overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-[#3d0b13] to-[#200408] shadow-xl flex flex-col justify-between min-h-[260px] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-[0_8px_35px_rgb(211,47,47,0.2)] animate-fade-in text-left"
+                  className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-black/85 to-[#3d0b13]/25 shadow-xl flex flex-col justify-between min-h-[260px] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:shadow-[0_8px_35px_rgb(211,47,47,0.15)] animate-fade-in text-left"
                 >
                   {/* Decoraciones del Boleto (Ticket Cutouts) */}
                   <div className="absolute -left-3 top-[65%] h-6 w-6 rounded-full bg-[#0a0606] border-r border-primary/30" />
@@ -501,7 +501,7 @@ export function ReservasPage() {
                         <span className="text-[9px] text-primary-light font-bold uppercase tracking-widest mb-1">Confirmado</span>
                         <div className="w-full flex items-center justify-center relative">
                           <div className="absolute left-0 right-0 border-t border-dashed border-primary/30 top-1/2 -translate-y-1/2" />
-                          <svg className="h-4 w-4 text-primary-light bg-[#3d0b13] px-0.5 z-10 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <svg className="h-4 w-4 text-primary-light bg-[#12080a] px-0.5 z-10 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                           </svg>
                         </div>
