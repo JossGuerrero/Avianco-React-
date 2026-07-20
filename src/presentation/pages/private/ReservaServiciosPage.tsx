@@ -154,47 +154,45 @@ export function ReservaServiciosPage() {
     }
   }
 
-  // Retornar ícono correspondiente según nombre del servicio
-  function renderIconoServicio(nombre: string) {
+  function renderIconoServicio(nombre: string, colorClass: string = 'text-primary-light') {
     const n = nombre.toLowerCase();
     if (n.includes('equipaje') || n.includes('maleta') || n.includes('bolsa')) {
       return (
-        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className={`h-6 w-6 ${colorClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       );
     }
     if (n.includes('comida') || n.includes('almuerzo') || n.includes('bebida') || n.includes('menu')) {
       return (
-        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className={`h-6 w-6 ${colorClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       );
     }
     if (n.includes('prioridad') || n.includes('embarque') || n.includes('rapido')) {
       return (
-        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+        <svg className={`h-6 w-6 ${colorClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z" />
         </svg>
       );
     }
     if (n.includes('mascota') || n.includes('perro') || n.includes('gato') || n.includes('cabina')) {
       return (
-        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className={`h-6 w-6 ${colorClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.871 4A17.926 17.926 0 003 12c0 5.186 2.447 9.8 6.262 12.75M9 9c0-1.657 1.343-3 3-3s3 1.343 3 3-1.343 3-3 3-3-1.343-3-3z" />
         </svg>
       );
     }
     if (n.includes('sala') || n.includes('vip') || n.includes('lounge')) {
       return (
-        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className={`h-6 w-6 ${colorClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
         </svg>
       );
     }
-    // Ícono por defecto
     return (
-      <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <svg className={`h-6 w-6 ${colorClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
       </svg>
     );
@@ -332,21 +330,54 @@ export function ReservaServiciosPage() {
               const ruta = vuelo ? `${vuelo.origen_detalle?.codigo_iata ?? 'SLO'} → ${vuelo.destino_detalle?.codigo_iata ?? 'DST'}` : `Vuelo #${reserva?.vuelo}`;
               const nombrePasajero = pasajero ? (pasajero.nombre_completo || pasajero.numero_pasaporte) : `Pasajero #${reserva?.pasajero}`;
 
+              const tipoLower = (servicio?.tipo || '').toLowerCase();
+              const theme = {
+                comida: {
+                  border: 'border-orange-500/20 hover:border-orange-500/40 hover:shadow-[0_8px_35px_rgba(249,115,22,0.15)]',
+                  bgIcon: 'bg-orange-500/10 border-orange-500/20 text-orange-400',
+                  badge: 'text-orange-400',
+                },
+                equipaje: {
+                  border: 'border-blue-500/20 hover:border-blue-500/40 hover:shadow-[0_8px_35px_rgba(59,130,246,0.15)]',
+                  bgIcon: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+                  badge: 'text-blue-400',
+                },
+                asiento: {
+                  border: 'border-purple-500/20 hover:border-purple-500/40 hover:shadow-[0_8px_35px_rgba(168,85,247,0.15)]',
+                  bgIcon: 'bg-purple-500/10 border-purple-500/20 text-purple-400',
+                  badge: 'text-purple-400',
+                },
+                wifi: {
+                  border: 'border-cyan-500/20 hover:border-cyan-500/40 hover:shadow-[0_8px_35px_rgba(6,182,212,0.15)]',
+                  bgIcon: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400',
+                  badge: 'text-cyan-400',
+                },
+                seguro: {
+                  border: 'border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-[0_8px_35px_rgba(16,185,129,0.15)]',
+                  bgIcon: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
+                  badge: 'text-emerald-400',
+                },
+              }[tipoLower] || {
+                border: 'border-white/10 hover:border-white/20 hover:shadow-[0_8px_35px_rgba(255,255,255,0.05)]',
+                bgIcon: 'bg-white/5 border-white/10 text-white',
+                badge: 'text-gray-400',
+              };
+
               return (
                 <div 
                   key={rs.id}
-                  className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-black/85 to-[#3d0b13]/25 backdrop-blur-md p-6 shadow-xl flex flex-col justify-between min-h-[180px] transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:shadow-[0_8px_35px_rgb(211,47,47,0.15)] animate-fade-in text-left"
+                  className={`relative overflow-hidden rounded-3xl border bg-gradient-to-br from-black/85 to-white/5 backdrop-blur-md p-6 shadow-xl flex flex-col justify-between min-h-[190px] transition-all duration-300 hover:-translate-y-1 animate-scale-in text-left ${theme.border}`}
                 >
                   <div className="space-y-4">
                     {/* Encabezado de la Tarjeta */}
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-primary/10 border border-primary/20 rounded-xl">
-                          {renderIconoServicio(servicio?.nombre ?? '')}
+                        <div className={`p-2.5 rounded-xl border ${theme.bgIcon}`}>
+                          {renderIconoServicio(servicio?.nombre ?? '', theme.badge)}
                         </div>
                         <div>
                           <h3 className="text-sm font-bold text-white leading-tight">{servicio?.nombre ?? 'Servicio Adicional'}</h3>
-                          <span className="text-[10px] text-primary-light font-bold uppercase tracking-wider">{servicio?.categoria ?? 'Catálogo'}</span>
+                          <span className={`text-[9px] font-bold uppercase tracking-wider ${theme.badge}`}>{servicio?.tipo ?? 'Catálogo'}</span>
                         </div>
                       </div>
                       <span className="text-[10px] font-mono font-bold text-gray-500">COD #{rs.id}</span>
