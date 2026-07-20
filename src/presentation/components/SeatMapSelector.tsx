@@ -146,6 +146,7 @@ export function SeatMapSelector({
           })}
         </div>
       </div>
+    </div>
 
       {/* Leyenda */}
       <div className="mt-3 rounded-xl border border-dark-border/50 bg-dark-surface/20 p-3">
