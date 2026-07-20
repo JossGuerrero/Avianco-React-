@@ -247,22 +247,30 @@ export function CheckInsPage() {
       <div className="absolute top-10 right-1/4 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Cabecera Principal */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+      {/* Cabecera Principal - Banner de Fondo Completo (Full-Bleed) */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/60 shadow-2xl h-80 sm:h-64 flex items-center p-6 sm:p-8">
+        {/* Foto de fondo completa */}
+        <div className="absolute inset-0 z-0 opacity-25 pointer-events-none blur-[1px]">
+          <img 
+            src="/checkin_banner_1784574434075.png" 
+            alt="Check-in Background Banner" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/90 to-transparent" />
+        </div>
         
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
-          <div>
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10 w-full text-left">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/30 px-3 py-1 text-xs font-semibold text-primary-light">
+              <svg className="h-4 w-4 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
-              <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Servicios de Embarque</span>
+              Servicios de Embarque
             </div>
-            <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
               Terminal de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Check-in</span>
             </h1>
-            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-400 max-w-xl leading-relaxed">
               {isStaff 
                 ? 'Panel de administración general para la emisión de tarjetas de embarque, asignación de puertas y control de check-in.'
                 : 'Consulta tus tarjetas de embarque digitales, puertas de salida asignadas y realiza tu check-in en línea antes de abordar.'}
