@@ -163,6 +163,19 @@ export function PasajerosPage() {
         compacto
       />
 
+      {/* Tarjeta de Asistente de Vuelo de Bienvenida (Efecto Espejo / Glassmorphism) */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-[#3d0b13]/40 backdrop-blur-md p-4 shadow-lg flex items-center gap-4 animate-fade-in">
+        <div className="relative shrink-0 h-12 w-12 rounded-full overflow-hidden border border-primary/30 shadow-inner">
+          <img src="/flight_attendant.png" alt="Asistente de Vuelo" className="h-full w-full object-cover" />
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-primary-light uppercase tracking-wider">Asistente de Vuelo Avianco</p>
+          <p className="text-xs text-gray-300 mt-0.5 leading-relaxed">
+            "Recuerda ingresar tu número de pasaporte exactamente como aparece en tu libreta oficial para evitar demoras en las puertas de abordaje de tu próximo vuelo."
+          </p>
+        </div>
+      </div>
+
       {error && (
         <p className="rounded-2xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light animate-fade-in">
           {error}
@@ -190,7 +203,7 @@ export function PasajerosPage() {
             {visibles.map((pasajero) => (
               <div 
                 key={pasajero.id} 
-                className="relative overflow-hidden rounded-3xl border border-dark-border bg-gradient-to-br from-dark-surface to-dark p-6 shadow-md transition-all duration-300 hover:-translate-y-1 hover:border-primary/55 hover:shadow-lg hover:shadow-primary/5"
+                className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-black/85 to-[#3d0b13]/25 backdrop-blur-md p-6 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:shadow-2xl hover:shadow-primary/5"
               >
                 {/* Decoración superior derecha estilo chip */}
                 <div className="absolute right-6 top-6 flex h-8 w-12 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
