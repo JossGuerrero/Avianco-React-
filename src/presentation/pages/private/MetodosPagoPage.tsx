@@ -69,10 +69,10 @@ export function MetodosPagoPage() {
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Cabecera Principal */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
+        <div className="relative z-10 space-y-4 max-w-xl text-left">
           <div>
             <div className="flex items-center gap-2">
               <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -83,12 +83,22 @@ export function MetodosPagoPage() {
             <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
               Canales de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Pago</span>
             </h1>
-            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+            <p className="mt-2 text-xs text-gray-400 leading-relaxed">
               {isStaff 
                 ? 'Administra los canales de procesamiento activos, habilita nuevos métodos bancarios y controla el estado operativo.'
                 : 'Conoce los medios de pago disponibles y canales habilitados para procesar tus reservas y equipajes de forma segura.'}
             </p>
           </div>
+        </div>
+
+        {/* Banner Generado por IA */}
+        <div className="relative w-full md:w-64 h-24 rounded-2xl overflow-hidden border border-white/10 shadow-lg hidden md:block">
+          <img 
+            src="/payment_banner_1784571142564.png" 
+            alt="Payment Banner" 
+            className="w-full h-full object-cover opacity-80"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-dark/80 to-transparent" />
         </div>
       </div>
 
@@ -201,11 +211,130 @@ export function MetodosPagoPage() {
             </div>
           ) : (
             /* ================= VISTA CLIENTE: TARJETAS DE PAGO ================= */
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white tracking-wide">Medios de Pago Habilitados</h2>
-              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
-                Cargando pasarelas financieras...
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white tracking-wide">Medios de Pago Habilitados</h2>
+                <span className="text-xs text-gray-400">{filtrados.length} canales operativos</span>
               </div>
+
+              {filtrados.length === 0 ? (
+                <div className="py-16 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm">
+                  No hay medios de pago configurados en esta pasarela.
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filtrados.map((m) => {
+                    // Configuración visual por tipo de método de pago
+                    const config = {
+                      tarjeta: {
+                        cardBg: 'from-blue-600/20 via-blue-900/10 to-blue-950/5 border-blue-500/30',
+                        glowColor: 'bg-blue-400/20 text-blue-300',
+                        chip: true,
+                        brand: 'Visa / Mastercard',
+                        icon: (
+                          <svg className="h-7 w-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                          </svg>
+                        ),
+                      },
+                      paypal: {
+                        cardBg: 'from-indigo-600/20 via-indigo-900/10 to-indigo-950/5 border-indigo-500/30',
+                        glowColor: 'bg-indigo-400/20 text-indigo-300',
+                        chip: false,
+                        brand: 'Paypal Wallet',
+                        icon: (
+                          <svg className="h-7 w-7 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
+                        ),
+                      },
+                      transferencia: {
+                        cardBg: 'from-emerald-600/20 via-emerald-900/10 to-emerald-950/5 border-emerald-500/30',
+                        glowColor: 'bg-emerald-400/20 text-emerald-300',
+                        chip: false,
+                        brand: 'PSE / Transferencia',
+                        icon: (
+                          <svg className="h-7 w-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                          </svg>
+                        ),
+                      },
+                      efectivo: {
+                        cardBg: 'from-amber-600/20 via-amber-900/10 to-amber-950/5 border-amber-500/30',
+                        glowColor: 'bg-amber-400/20 text-amber-300',
+                        chip: false,
+                        brand: 'Puntos Físicos',
+                        icon: (
+                          <svg className="h-7 w-7 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                        ),
+                      },
+                    }[m.tipo.toLowerCase()] || {
+                      cardBg: 'from-white/5 to-white/0 border-white/10',
+                      glowColor: 'bg-white/10 text-white',
+                      chip: false,
+                      brand: 'Procesador',
+                      icon: (
+                        <svg className="h-7 w-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      ),
+                    };
+
+                    return (
+                      <div key={m.id} className={`relative overflow-hidden rounded-3xl border bg-gradient-to-br backdrop-blur-md shadow-2xl p-6 flex flex-col justify-between h-[210px] w-full animate-scale-in transition-all ${config.cardBg} ${!m.activo ? 'opacity-40 select-none pointer-events-none' : 'hover:border-white/20 hover:scale-[1.02]'}`}>
+                        
+                        {/* Status Light and Brand Icon */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className={`relative flex h-2.5 w-2.5 ${m.activo ? '' : 'hidden'}`}>
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                            </span>
+                            {!m.activo && <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />}
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                              {m.activo ? 'Canal Operativo' : 'Mantenimiento'}
+                            </span>
+                          </div>
+                          {config.icon}
+                        </div>
+
+                        {/* Physical Chip representation */}
+                        {config.chip && (
+                          <div className="w-9 h-7 rounded-lg bg-gradient-to-r from-yellow-600 via-yellow-400 to-yellow-600 border border-yellow-700/30 opacity-75 my-2 flex flex-col justify-between p-1.5 shadow-[inset_0_1px_4px_rgba(255,255,255,0.4)]">
+                            <div className="border-b border-yellow-700/25 h-1/2 w-full" />
+                            <div className="border-t border-yellow-700/25 h-1/2 w-full" />
+                          </div>
+                        )}
+
+                        {/* Middle: Method Name */}
+                        <div className="text-left mt-2">
+                          <h3 className="text-base font-black text-white tracking-wide">{m.nombre}</h3>
+                          <span className="text-[9px] text-gray-500 uppercase tracking-widest block font-mono mt-0.5">{config.brand}</span>
+                        </div>
+
+                        {/* Bottom: ID and status Badge */}
+                        <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                          <span className="text-[9px] text-gray-500 font-mono">ID #{m.id}</span>
+                          <span className={`text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-md border ${m.activo ? 'border-emerald-500/20 text-emerald-400 bg-emerald-500/5' : 'border-yellow-500/20 text-yellow-400 bg-yellow-500/5'}`}>
+                            {m.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </div>
+
+                        {/* Inactive Overlay banner */}
+                        {!m.activo && (
+                          <div className="absolute inset-0 bg-dark/20 backdrop-blur-[1px] flex items-center justify-center p-4">
+                            <span className="bg-dark/95 border border-yellow-500/30 px-3.5 py-1.5 rounded-xl text-[10px] text-yellow-300 font-semibold shadow-2xl">
+                              Temporalmente Fuera de Servicio
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
