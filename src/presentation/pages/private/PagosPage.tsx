@@ -3,6 +3,7 @@ import type { Pago } from '../../../domain/entities/Pago';
 import type { MetodoPago } from '../../../domain/entities/MetodoPago';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
+import type { Vuelo } from '../../../domain/entities/Vuelo';
 import { EstadoPago } from '../../../domain/enums/EstadoPago';
 import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
@@ -39,6 +40,7 @@ export function PagosPage() {
   const [metodos, setMetodos] = useState<MetodoPago[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [pasajeros, setPasajeros] = useState<Pasajero[]>([]);
+  const [vuelos, setVuelos] = useState<Vuelo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,16 +70,18 @@ export function PagosPage() {
     setLoading(true);
     setError(null);
     try {
-      const [pagosData, metodosData, reservasData, pasajerosData] = await Promise.all([
+      const [pagosData, metodosData, reservasData, pasajerosData, vuelosData] = await Promise.all([
         useCaseFactory.pagos.getAll(),
         useCaseFactory.metodosPago.getAll(),
         useCaseFactory.reservas.getAll(),
         useCaseFactory.pasajeros.getAll(),
+        useCaseFactory.vuelos.getAll(),
       ]);
       setPagos(pagosData);
       setMetodos(metodosData);
       setReservas(reservasData);
       setPasajeros(pasajerosData);
+      setVuelos(vuelosData);
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudieron cargar los pagos'));
     } finally {
@@ -92,6 +96,7 @@ export function PagosPage() {
   const metodosPorId = useMemo(() => new Map(metodos.map((m) => [m.id, m])), [metodos]);
   const reservasPorId = useMemo(() => new Map(reservas.map((r) => [r.id, r])), [reservas]);
   const pasajerosPorId = useMemo(() => new Map(pasajeros.map((p) => [p.id, p])), [pasajeros]);
+  const vuelosPorId = useMemo(() => new Map(vuelos.map((v) => [v.id, v])), [vuelos]);
 
   // Filtro de propiedad de datos para Clientes
   const misPasajerosIds = useMemo(() => {
@@ -371,7 +376,7 @@ export function PagosPage() {
                     onChange={(e) => setBusqueda(e.target.value)}
                     className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
                   />
-                  <Button size="small" onClick={abrirCrear}>
+                  <Button className="text-xs px-3 py-1.5" onClick={abrirCrear}>
                     + Registrar Pago
                   </Button>
                 </div>
@@ -490,7 +495,7 @@ export function PagosPage() {
                             <span className="text-lg font-black text-white">{formatPrecio(p.monto)}</span>
                           </div>
                           {esPendiente ? (
-                            <Button size="small" onClick={() => abrirCheckout(p)}>
+                            <Button className="text-xs px-3 py-1.5" onClick={() => abrirCheckout(p)}>
                               Pagar Ahora
                             </Button>
                           ) : (

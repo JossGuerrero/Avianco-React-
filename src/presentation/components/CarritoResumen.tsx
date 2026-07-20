@@ -90,7 +90,7 @@ export function CarritoResumen({
           <span className="text-gray-400 font-medium">Pasajero titular:</span>
           <span className="truncate font-semibold text-gray-200 max-w-[150px]">{pasajeroNombre || 'No seleccionado'}</span>
         </div>
-      </div>
+      </dl>
 
       {servicios.length > 0 && (
         <div className="space-y-2.5 border-t border-dark-border pt-4">
@@ -205,11 +205,6 @@ export function CarritoResumen({
           <dt className="text-gray-400">Tarifa del vuelo</dt>
           <dd className="text-white">{formatPrecio(desglose.precioVuelo)}</dd>
         </div>
-        {desglose.descuento > 0 && promoAplicada && (
-          <div className="flex justify-between">
-            <dt className="text-gray-400 font-medium">Tarifa base del vuelo</dt>
-            <dd className="text-white font-semibold">{formatPrecio(desglose.precioVuelo)}</dd>
-          </div>
           {desglose.descuento > 0 && promoAplicada && (
             <div className="flex justify-between">
               <dt className="text-gray-400 font-medium">Descuento ({promoAplicada.codigo})</dt>
@@ -231,7 +226,6 @@ export function CarritoResumen({
             <dd className="text-xl font-black text-primary-light tracking-wide">{formatPrecio(desglose.total)}</dd>
           </div>
         </dl>
-      </div>
 
       <Button
         className="w-full shadow-lg shadow-primary/20 hover:shadow-primary/35 transition-all duration-300 py-3 text-sm font-bold mt-2"
