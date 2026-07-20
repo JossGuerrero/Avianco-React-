@@ -261,11 +261,119 @@ export function EquipajesPage() {
             </div>
           ) : (
             /* ================= VISTA CLIENTE: TARJETAS DE EQUIPAJE ================= */
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white tracking-wide">Mis Etiquetas de Equipaje</h2>
-              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
-                Cargando maletas y pesajes...
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white tracking-wide">Mis Etiquetas de Equipaje (Luggage Tags)</h2>
+                <span className="text-xs text-gray-400">{equipajesFiltrados.length} maletas registradas</span>
               </div>
+
+              {equipajesFiltrados.length === 0 ? (
+                <div className="py-16 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm">
+                  No registras equipaje facturado. Puedes registrar tu equipaje en la facturación o con Staff.
+                </div>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                  {equipajesFiltrados.map((e) => {
+                    const res = reservasPorId.get(e.reserva);
+                    const pas = res ? pasajerosPorId.get(res.pasajero) : null;
+                    const vue = res ? vuelosPorId.get(res.vuelo) : null;
+
+                    const nombrePas = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${res?.pasajero}`;
+                    const origen = vue?.origen_detalle?.codigo_iata || 'ORG';
+                    const destino = vue?.destino_detalle?.codigo_iata || 'DST';
+                    const peso = Number(e.peso_kg);
+                    const sobrepeso = peso > 23;
+                    const porcentajePeso = Math.min(100, (peso / 23) * 100);
+
+                    // Estilo de badge del tipo de equipaje
+                    const badgeEstilos = {
+                      cabina: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
+                      bodega: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+                      especial: 'bg-purple-500/10 border-purple-500/20 text-purple-400',
+                    }[e.tipo.toLowerCase()] || 'bg-stone-500/10 border-stone-500/20 text-stone-400';
+
+                    return (
+                      <div key={e.id} className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0 backdrop-blur-md shadow-2xl p-6 flex flex-col justify-between h-96 w-full animate-scale-in group hover:border-white/20 transition-all">
+                        {/* Luggage Tag Punched Hole and Thread */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-4 bg-gradient-to-b from-white/30 to-transparent" />
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-[#1a1a1a] border border-white/15 shadow-inner flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary/30" />
+                        </div>
+
+                        {/* Top Brand & Type */}
+                        <div className="pt-4 text-center space-y-1">
+                          <span className="text-[9px] uppercase font-bold text-gray-500 tracking-widest block">Avianco Cargo</span>
+                          <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${badgeEstilos}`}>
+                            {e.tipo}
+                          </span>
+                        </div>
+
+                        {/* Route Codes */}
+                        <div className="text-center py-2 space-y-0.5">
+                          <div className="flex items-center justify-center gap-3">
+                            <span className="text-2xl font-black text-white tracking-tighter">{origen}</span>
+                            <svg className="h-4 w-4 text-gray-500 transform rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 14l-4-4m4 4l4-4" />
+                            </svg>
+                            <span className="text-2xl font-black text-white tracking-tighter">{destino}</span>
+                          </div>
+                          <span className="text-[10px] text-gray-400 block font-mono">Boleto Reserva #{e.reserva}</span>
+                        </div>
+
+                        {/* Báscula de peso gráfica */}
+                        <div className="space-y-1.5 px-2">
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-[9px] uppercase font-bold text-gray-500">Báscula</span>
+                            <span className={`text-base font-black ${sobrepeso ? 'text-rose-400' : 'text-emerald-400'}`}>
+                              {peso} kg
+                            </span>
+                          </div>
+                          {/* Progress bar */}
+                          <div className="w-full bg-white/5 rounded-full h-1.5 overflow-hidden border border-white/5">
+                            <div 
+                              className={`h-full rounded-full transition-all duration-500 ${sobrepeso ? 'bg-rose-500' : 'bg-emerald-500'}`}
+                              style={{ width: `${porcentajePeso}%` }}
+                            />
+                          </div>
+                          {/* Alert message if overweight */}
+                          {sobrepeso ? (
+                            <span className="text-[9px] font-bold text-rose-400 flex items-center justify-center gap-1 animate-pulse">
+                              ⚠️ SOBREPESO (+{(peso - 23).toFixed(1)} kg)
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-gray-500 text-center block">Equipaje dentro del límite permitido</span>
+                          )}
+                        </div>
+
+                        {/* Passenger Details */}
+                        <div className="text-center text-[10px] text-stone-300 border-t border-white/5 pt-2 max-w-[180px] mx-auto truncate font-medium">
+                          {nombrePas}
+                        </div>
+
+                        {/* Barcode / Claim Code */}
+                        <div className="space-y-1 text-center">
+                          <div className="flex gap-0.5 items-end justify-center h-8 opacity-75 bg-white/5 px-3 py-1 rounded-lg">
+                            {Array.from({ length: 28 }).map((_, idx) => {
+                              const widths = [1, 2, 1, 3, 1, 2, 1, 1, 2];
+                              const width = widths[idx % widths.length];
+                              const isBlack = idx % 2 === 0;
+                              return (
+                                <div
+                                  key={idx}
+                                  className="h-full bg-white"
+                                  style={{ width: `${width}px`, opacity: isBlack ? 0.9 : 0 }}
+                                />
+                              );
+                            })}
+                          </div>
+                          <span className="text-[8px] font-mono text-gray-500 tracking-wider">BAG-TAG #{e.id}000{e.reserva}</span>
+                        </div>
+
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
