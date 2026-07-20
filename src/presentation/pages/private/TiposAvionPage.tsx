@@ -1,6 +1,7 @@
 import { CrudPage } from '../../components/CrudPage';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function TiposAvionPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -8,6 +9,9 @@ export function TiposAvionPage() {
   return (
     <CrudPage
       titulo="Tipos de avión"
+      destacado="avión"
+      descripcion="Catálogo de modelos: fabricante, autonomía y especificaciones técnicas"
+      imagenHero={AVIATION_IMAGES.tiposAvion}
       nombreEntidad="tipo de avión"
       useCases={useCaseFactory.tiposAvion}
       puedeMutar={isStaff}

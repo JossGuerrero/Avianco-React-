@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Tripulante } from '../../../domain/entities/Tripulante';
 import { RolTripulacion } from '../../../domain/enums/RolTripulacion';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
@@ -6,8 +6,11 @@ import { DataTable, type Column } from '../../components/DataTable';
 import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
+import { PageHero } from '../../components/PageHero';
+import { StatCard } from '../../components/StatCard';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 import { getErrorMessage } from '../../utils/formatters';
 
 interface TripulanteForm {
@@ -24,6 +27,13 @@ const FORM_VACIO: TripulanteForm = {
   rol: RolTripulacion.Piloto,
   licencia: '',
   activo: true,
+};
+
+const ROL_COLORES: Record<RolTripulacion, string> = {
+  [RolTripulacion.Piloto]: 'from-blue-600/20 to-blue-900/10 border-blue-500/30',
+  [RolTripulacion.Copiloto]: 'from-indigo-600/20 to-indigo-900/10 border-indigo-500/30',
+  [RolTripulacion.Azafata]: 'from-pink-600/20 to-pink-900/10 border-pink-500/30',
+  [RolTripulacion.Tecnico]: 'from-amber-600/20 to-amber-900/10 border-amber-500/30',
 };
 
 export function TripulacionPage() {
@@ -52,6 +62,15 @@ export function TripulacionPage() {
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  const stats = useMemo(() => {
+    const activos = tripulantes.filter((t) => t.activo).length;
+    const porRol = Object.values(RolTripulacion).map((rol) => ({
+      rol,
+      count: tripulantes.filter((t) => t.rol === rol).length,
+    }));
+    return { total: tripulantes.length, activos, porRol };
+  }, [tripulantes]);
 
   function abrirCrear() {
     setEditando(null);
@@ -114,46 +133,99 @@ export function TripulacionPage() {
   }
 
   const columnas: Column<Tripulante>[] = [
-    { header: 'Nombre', render: (t) => `${t.nombre} ${t.apellido}` },
-    { header: 'Rol', render: (t) => <span className="capitalize">{t.rol}</span> },
-    { header: 'Licencia', render: (t) => <span className="font-mono">{t.licencia}</span> },
+    {
+      header: 'Tripulante',
+      render: (t) => (
+        <div className="flex items-center gap-3">
+          <div
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-gradient-to-br text-xs font-bold capitalize text-white ${ROL_COLORES[t.rol]}`}
+          >
+            {t.nombre[0]}
+            {t.apellido[0]}
+          </div>
+          <span className="font-semibold">
+            {t.nombre} {t.apellido}
+          </span>
+        </div>
+      ),
+    },
+    { header: 'Rol', render: (t) => <span className="capitalize font-medium text-gray-300">{t.rol}</span> },
+    { header: 'Licencia', render: (t) => <span className="font-mono text-primary-light">{t.licencia}</span> },
     { header: 'Estado', render: (t) => <Badge estado={t.activo ? 'activo' : 'inactivo'} /> },
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          <span className="text-primary">Tripulación</span>
-        </h1>
-        <Button onClick={abrirCrear}>+ Nuevo tripulante</Button>
+    <div className="space-y-6">
+      <PageHero
+        titulo="Gestión de tripulación"
+        destacado="tripulación"
+        subtitulo="Administra el personal de vuelo: pilotos, copilotos, azafatas y técnicos"
+        imagen={AVIATION_IMAGES.tripulacion}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.tripulacion)}
+        accion={<Button onClick={abrirCrear}>+ Nuevo tripulante</Button>}
+        compacto
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          etiqueta="Total tripulantes"
+          valor={stats.total}
+          cargando={loading}
+          icono={
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          }
+        />
+        <StatCard
+          etiqueta="Activos"
+          valor={stats.activos}
+          cargando={loading}
+          icono={
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+          tendencia={`${stats.total - stats.activos} inactivos`}
+        />
+        {stats.porRol.slice(0, 2).map(({ rol, count }) => (
+          <StatCard
+            key={rol}
+            etiqueta={rol.charAt(0).toUpperCase() + rol.slice(1) + 's'}
+            valor={count}
+            cargando={loading}
+            icono={
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+              </svg>
+            }
+          />
+        ))}
       </div>
 
       {error && (
-        <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
+        <p className="rounded-xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
           {error}
         </p>
       )}
 
-      <div className="mt-6">
-        <DataTable
-          columns={columnas}
-          data={tripulantes}
-          getRowId={(t) => t.id}
-          loading={loading}
-          emptyMessage="No hay tripulantes registrados"
-          actions={(tripulante) => (
-            <>
-              <Button variant="secondary" onClick={() => abrirEditar(tripulante)}>
-                Editar
-              </Button>
-              <Button variant="danger" onClick={() => eliminar(tripulante)}>
-                Eliminar
-              </Button>
-            </>
-          )}
-        />
-      </div>
+      <DataTable
+        columns={columnas}
+        data={tripulantes}
+        getRowId={(t) => t.id}
+        loading={loading}
+        emptyMessage="No hay tripulantes registrados"
+        actions={(tripulante) => (
+          <>
+            <Button variant="secondary" onClick={() => abrirEditar(tripulante)}>
+              Editar
+            </Button>
+            <Button variant="danger" onClick={() => eliminar(tripulante)}>
+              Eliminar
+            </Button>
+          </>
+        )}
+      />
 
       <Modal
         open={modalAbierto}
