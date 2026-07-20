@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/formatters';
+import { Modal } from '../../components/Modal';
+import { FormInput } from '../../components/FormInput';
+import { FormSelect } from '../../components/FormSelect';
+import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
+import { TipoEquipaje } from '../../../domain/enums/TipoEquipaje';
 import type { Equipaje } from '../../../domain/entities/Equipaje';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
@@ -21,6 +26,18 @@ export function EquipajesPage() {
 
   // Filtros
   const [busqueda, setBusqueda] = useState<string>('');
+
+  // Estados para CRUD de Equipaje
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [editando, setEditando] = useState<Equipaje | null>(null);
+  const [valores, setValores] = useState({
+    reserva: '',
+    tipo: 'bodega',
+    peso_kg: '15.0',
+    descripcion: '',
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -82,6 +99,14 @@ export function EquipajesPage() {
     });
   }, [equipajesVisibles, busqueda, reservasPorId, pasajerosPorId]);
 
+  // Reservas disponibles para registrar maletas
+  const reservasDisponibles = useMemo(() => {
+    const listaReservas = isStaff 
+      ? reservas 
+      : reservas.filter((r) => misPasajerosIds.has(r.pasajero));
+    return listaReservas.filter((r) => r.estado !== EstadoReserva.Cancelada);
+  }, [reservas, isStaff, misPasajerosIds]);
+
   // Estadísticas del panel superior
   const stats = useMemo(() => {
     const totalCount = equipajesVisibles.length;
@@ -98,6 +123,75 @@ export function EquipajesPage() {
       especial,
     };
   }, [equipajesVisibles]);
+
+  // Lógica CRUD
+  function abrirCrear() {
+    setEditando(null);
+    setValores({
+      reserva: reservasDisponibles[0] ? String(reservasDisponibles[0].id) : '',
+      tipo: 'bodega',
+      peso_kg: '15.0',
+      descripcion: '',
+    });
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  function abrirEditar(e: Equipaje) {
+    setEditando(e);
+    setValores({
+      reserva: String(e.reserva),
+      tipo: e.tipo,
+      peso_kg: String(e.peso_kg),
+      descripcion: e.descripcion || '',
+    });
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  async function handleEliminar(e: Equipaje) {
+    if (!window.confirm(`¿Eliminar la etiqueta de equipaje #${e.id}?`)) return;
+    try {
+      await useCaseFactory.equipajes.remove(e.id);
+      await cargar();
+    } catch (err) {
+      setError(getErrorMessage(err, 'No se pudo eliminar el equipaje'));
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const reservaId = Number(valores.reserva);
+    const peso = Number(valores.peso_kg);
+    
+    if (!reservaId || !valores.tipo || Number.isNaN(peso) || peso <= 0) {
+      setFormError('La reserva, tipo y peso (mayor a 0) son obligatorios');
+      return;
+    }
+
+    setGuardando(true);
+    setFormError(null);
+    try {
+      const input = {
+        reserva: reservaId,
+        tipo: valores.tipo as TipoEquipaje,
+        peso_kg: peso,
+        descripcion: valores.descripcion.trim(),
+      };
+
+      if (editando) {
+        await useCaseFactory.equipajes.update(editando.id, input);
+      } else {
+        await useCaseFactory.equipajes.create(input);
+      }
+      setModalAbierto(false);
+      await cargar();
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'No se pudo registrar el equipaje'));
+    } finally {
+      setGuardando(false);
+    }
+  }
 
   return (
     <div className="relative space-y-8 animate-fade-in pb-12 text-left">
@@ -166,13 +260,13 @@ export function EquipajesPage() {
             <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-yellow-500/0 backdrop-blur-md p-4 shadow-lg">
               <span className="text-[10px] uppercase font-bold text-yellow-400 tracking-wider">Especiales</span>
               <div className="mt-1.5 text-xl font-black text-yellow-300">{stats.especial}</div>
-              <p className="mt-0.5 text-[10px] text-yellow-400">Instrumentos/deportivos</p>
+              <p className="mt-0.5 text-[10px] text-gray-400">Instrumentos/deportivos</p>
             </div>
 
             <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-500/0 backdrop-blur-md p-4 shadow-lg col-span-2 lg:col-span-1">
               <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Límite Permitido</span>
               <div className="mt-1.5 text-xl font-black text-purple-300">23.0 <span className="text-xs text-purple-400 font-normal">kg</span></div>
-              <p className="mt-0.5 text-[10px] text-purple-400">Por maleta facturada</p>
+              <p className="mt-0.5 text-[10px] text-gray-400">Por maleta facturada</p>
             </div>
           </div>
 
@@ -193,7 +287,7 @@ export function EquipajesPage() {
                     onChange={(e) => setBusqueda(e.target.value)}
                     className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
                   />
-                  <Button size="small">
+                  <Button size="small" onClick={abrirCrear}>
                     + Registrar Equipaje
                   </Button>
                 </div>
@@ -244,10 +338,16 @@ export function EquipajesPage() {
                             </td>
                             <td className="px-4 py-3 text-stone-400 italic truncate max-w-[150px]">{e.descripcion || '—'}</td>
                             <td className="px-4 py-3 text-right space-x-2">
-                              <button className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1">
+                              <button
+                                onClick={() => abrirEditar(e)}
+                                className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1"
+                              >
                                 Editar
                               </button>
-                              <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                              <button
+                                onClick={() => handleEliminar(e)}
+                                className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1"
+                              >
                                 Eliminar
                               </button>
                             </td>
@@ -263,13 +363,18 @@ export function EquipajesPage() {
             /* ================= VISTA CLIENTE: TARJETAS DE EQUIPAJE ================= */
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-white tracking-wide">Mis Etiquetas de Equipaje (Luggage Tags)</h2>
-                <span className="text-xs text-gray-400">{equipajesFiltrados.length} maletas registradas</span>
+                <h2 className="text-lg font-bold text-white tracking-wide">Mis Etiquetas de Equipaje</h2>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400">{equipajesFiltrados.length} maletas registradas</span>
+                  <Button size="small" onClick={abrirCrear}>
+                    + Registrar Maleta
+                  </Button>
+                </div>
               </div>
 
               {equipajesFiltrados.length === 0 ? (
                 <div className="py-16 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm">
-                  No registras equipaje facturado. Puedes registrar tu equipaje en la facturación o con Staff.
+                  No registras equipaje facturado. Puedes registrar tu equipaje aquí mismo.
                 </div>
               ) : (
                 <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
@@ -378,6 +483,79 @@ export function EquipajesPage() {
           )}
         </div>
       )}
+
+      {/* Modal de Registro / Edición de Equipaje */}
+      <Modal
+        open={modalAbierto}
+        title={editando ? `Editar Equipaje: #${editando.id}` : 'Registrar Equipaje'}
+        onClose={() => setModalAbierto(false)}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <div className="p-3 text-xs rounded-xl bg-primary/10 border border-primary/25 text-primary-light">
+              {formError}
+            </div>
+          )}
+
+          <FormSelect
+            label="Reserva de Pasajero"
+            required
+            disabled={!!editando}
+            value={valores.reserva}
+            onChange={(e) => setValores((prev) => ({ ...prev, reserva: e.target.value }))}
+            placeholder="Selecciona tu reserva"
+            options={reservasDisponibles.map((r) => {
+              const pas = pasajerosPorId.get(r.pasajero);
+              const nombrePas = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${r.pasajero}`;
+              const vue = vuelosPorId.get(r.vuelo);
+              const ruta = vue ? `${vue.origen_detalle?.codigo_iata} ➔ ${vue.destino_detalle?.codigo_iata}` : `Vuelo #${r.vuelo}`;
+              return {
+                value: String(r.id),
+                label: `Reserva #${r.id} · ${nombrePas} (${ruta})`,
+              };
+            })}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Tipo de Equipaje"
+              required
+              value={valores.tipo}
+              onChange={(e) => setValores((prev) => ({ ...prev, tipo: e.target.value }))}
+              options={[
+                { value: 'bodega', label: 'Equipaje de Bodega (Hasta 23kg)' },
+                { value: 'cabina', label: 'Equipaje de Cabina (Mano)' },
+                { value: 'especial', label: 'Equipaje Especial (Instrumentos/Deportes)' },
+              ]}
+            />
+            <FormInput
+              label="Peso Registrado (kg)"
+              required
+              type="number"
+              step="0.1"
+              value={valores.peso_kg}
+              onChange={(e) => setValores((prev) => ({ ...prev, peso_kg: e.target.value }))}
+              placeholder="Ej: 15.5"
+            />
+          </div>
+
+          <FormInput
+            label="Descripción del Contenido (Opcional)"
+            value={valores.descripcion}
+            onChange={(e) => setValores((prev) => ({ ...prev, descripcion: e.target.value }))}
+            placeholder="Ej: Maleta rígida azul, artículos deportivos"
+          />
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+            <Button variant="secondary" type="button" onClick={() => setModalAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={guardando}>
+              {guardando ? 'Registrando...' : 'Registrar maleta'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
