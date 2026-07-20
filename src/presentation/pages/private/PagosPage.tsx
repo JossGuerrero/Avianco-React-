@@ -23,6 +23,18 @@ export function PagosPage() {
   // Filtros
   const [busqueda, setBusqueda] = useState<string>('');
 
+  // Estados para la Pasarela de Pago (Checkout)
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutPago, setCheckoutPago] = useState<Pago | null>(null);
+  const [valoresTarjeta, setValoresTarjeta] = useState({
+    numero: '',
+    nombre: '',
+    exp: '',
+    cvv: '',
+  });
+  const [procesandoCheckout, setProcesandoCheckout] = useState(false);
+  const [pasoProcesamiento, setPasoProcesamiento] = useState('');
+
   const cargar = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -83,6 +95,62 @@ export function PagosPage() {
       );
     });
   }, [pagosVisibles, busqueda, reservasPorId, pasajerosPorId, metodosPorId]);
+
+  // Abrir pasarela de pago para clientes
+  function abrirCheckout(pago: Pago) {
+    setCheckoutPago(pago);
+    setValoresTarjeta({
+      numero: '',
+      nombre: '',
+      exp: '',
+      cvv: '',
+    });
+    setProcesandoCheckout(false);
+    setPasoProcesamiento('');
+    setCheckoutOpen(true);
+  }
+
+  // Ejecutar procesamiento bancario simulado
+  async function handleEjecutarPago(e: FormEvent) {
+    e.preventDefault();
+    if (!checkoutPago) return;
+    if (
+      !valoresTarjeta.numero.trim() ||
+      !valoresTarjeta.nombre.trim() ||
+      !valoresTarjeta.exp.trim() ||
+      !valoresTarjeta.cvv.trim()
+    ) {
+      alert('Por favor completa todos los datos de la tarjeta.');
+      return;
+    }
+
+    setProcesandoCheckout(true);
+    
+    const pasos = [
+      'Conectando de forma segura con la pasarela bancaria...',
+      'Verificando validez del número de tarjeta...',
+      'Validando saldo y autorizando cobro...',
+      '¡Cobro aprobado! Generando número de confirmación bancaria...',
+    ];
+
+    for (let i = 0; i < pasos.length; i++) {
+      setPasoProcesamiento(pasos[i]);
+      await new Promise((r) => setTimeout(r, 900));
+    }
+
+    try {
+      const refBancaria = `TRX-${Date.now().toString().slice(-8)}-${Math.floor(100 + Math.random() * 900)}`;
+      await useCaseFactory.pagos.update(checkoutPago.id, {
+        estado: EstadoPago.Completado,
+        referencia: refBancaria,
+      });
+      setCheckoutOpen(false);
+      await cargar();
+    } catch (err) {
+      alert(getErrorMessage(err, 'Ocurrió un error al registrar tu pago en el servidor'));
+      setProcesandoCheckout(false);
+    }
+  }
 
   // Estadísticas del panel superior
   const stats = useMemo(() => {
@@ -261,15 +329,194 @@ export function PagosPage() {
             </div>
           ) : (
             /* ================= VISTA CLIENTE: HISTORIAL DE PAGOS ================= */
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white tracking-wide">Mis Transacciones</h2>
-              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
-                Cargando tu historial de pagos...
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white tracking-wide">Mis Recibos y Transacciones</h2>
+                <span className="text-xs text-gray-400">{pagosFiltrados.length} transacciones registradas</span>
               </div>
+
+              {pagosFiltrados.length === 0 ? (
+                <div className="py-16 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm">
+                  No registras transacciones financieras en tu cuenta.
+                </div>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {pagosFiltrados.map((p) => {
+                    const res = reservasPorId.get(p.reserva);
+                    const pas = res ? pasajerosPorId.get(res.pasajero) : null;
+                    const vue = res ? vuelosPorId.get(res.vuelo) : null;
+                    const metodo = metodosPorId.get(p.metodo_pago)?.nombre || `Método #${p.metodo_pago}`;
+
+                    const nombrePas = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${res?.pasajero}`;
+                    const origen = vue?.origen_detalle?.codigo_iata || 'ORG';
+                    const destino = vue?.destino_detalle?.codigo_iata || 'DST';
+                    const esPendiente = p.estado === EstadoPago.Pendiente;
+
+                    return (
+                      <div key={p.id} className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0 backdrop-blur-md shadow-xl p-6 flex flex-col justify-between h-[300px] w-full animate-scale-in hover:border-white/20 transition-all">
+                        {/* Receipt Top Section */}
+                        <div className="flex items-center justify-between border-b border-dashed border-white/10 pb-3">
+                          <div>
+                            <span className="text-[10px] text-gray-500 block uppercase tracking-wider font-mono">ID de Pago</span>
+                            <span className="font-bold text-white text-xs">#TRX-{p.id}00{p.reserva}</span>
+                          </div>
+                          <Badge estado={p.estado} />
+                        </div>
+
+                        {/* Route and Passenger Info */}
+                        <div className="space-y-1.5 py-2">
+                          <span className="text-[10px] text-gray-500 block uppercase tracking-wider font-mono">Detalle del Vuelo</span>
+                          <div className="text-sm font-bold text-white">
+                            {origen} ➔ {destino} · <span className="text-gray-400 font-normal">Reserva #{p.reserva}</span>
+                          </div>
+                          <span className="text-[11px] text-stone-300 block">Pasajero: {nombrePas}</span>
+                          <span className="text-[11px] text-stone-400 block">Método de pago: <span className="text-stone-300 font-semibold">{metodo}</span></span>
+                        </div>
+
+                        {/* Amount & Button */}
+                        <div className="flex items-end justify-between border-t border-dashed border-white/10 pt-3 mt-auto">
+                          <div>
+                            <span className="text-[10px] text-gray-500 block uppercase tracking-wider font-mono">Monto Total</span>
+                            <span className="text-lg font-black text-white">{formatPrecio(p.monto)}</span>
+                          </div>
+                          {esPendiente ? (
+                            <Button size="small" onClick={() => abrirCheckout(p)}>
+                              Pagar Ahora
+                            </Button>
+                          ) : (
+                            <div className="text-right">
+                              <span className="text-[9px] text-gray-500 block uppercase tracking-wider font-mono">Referencia</span>
+                              <span className="font-mono text-[10px] text-emerald-400 font-bold block truncate max-w-[120px]">{p.referencia || 'VALIDADO'}</span>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
+
+      {/* Modal de Checkout / Pasarela de Pago Simulada */}
+      <Modal
+        open={checkoutOpen}
+        title="Pasarela de Pago Segura (Checkout)"
+        onClose={() => !procesandoCheckout && setCheckoutOpen(false)}
+      >
+        {procesandoCheckout ? (
+          <div className="py-12 flex flex-col items-center justify-center space-y-4 text-center">
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-white/5 border-t-primary animate-spin" />
+            </div>
+            <p className="text-sm font-bold text-white tracking-wide animate-pulse">{pasoProcesamiento}</p>
+            <p className="text-xs text-gray-500">Por favor no cierres ni recargues esta ventana.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleEjecutarPago} className="space-y-6 text-left">
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-xs text-stone-300 flex items-center justify-between">
+              <div>
+                <span className="block text-[10px] text-gray-400 uppercase font-mono">Monto a pagar</span>
+                <span className="text-lg font-black text-white">{checkoutPago ? formatPrecio(checkoutPago.monto) : '$0.00'}</span>
+              </div>
+              <div className="text-right">
+                <span className="block text-[10px] text-gray-400 uppercase font-mono">Reserva relacionada</span>
+                <span className="font-bold text-amber-300">Reserva #{checkoutPago?.reserva}</span>
+              </div>
+            </div>
+
+            {/* Tarjeta de Crédito Holográfica Interactiva */}
+            <div className="relative overflow-hidden rounded-2xl aspect-[1.586/1] bg-gradient-to-br from-[#2a2a2a] via-[#151515] to-[#252525] border border-white/15 p-6 shadow-2xl flex flex-col justify-between max-w-sm mx-auto">
+              <div className="absolute -right-20 -bottom-20 w-44 h-44 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+              <div className="flex items-center justify-between">
+                <div className="h-8 w-10 bg-amber-400/20 rounded-md border border-amber-400/35 relative flex items-center justify-center">
+                  <div className="h-5 w-6 border-r border-white/20 absolute left-2" />
+                  <div className="h-5 w-6 border-l border-white/20 absolute right-2" />
+                </div>
+                <span className="font-black text-white text-sm tracking-widest italic opacity-75">AVIANCO</span>
+              </div>
+
+              <div className="text-xl font-mono text-white tracking-widest py-4 drop-shadow-md">
+                {valoresTarjeta.numero.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim() || '•••• •••• •••• ••••'}
+              </div>
+
+              <div className="flex justify-between items-end">
+                <div>
+                  <span className="text-[7px] text-gray-500 block uppercase tracking-wider font-mono">Tarjetahabiente</span>
+                  <span className="text-xs font-mono text-white tracking-wide uppercase truncate max-w-[150px] block">
+                    {valoresTarjeta.nombre || 'Nombre Completo'}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-[7px] text-gray-500 block uppercase tracking-wider font-mono">Vence</span>
+                  <span className="text-xs font-mono text-white tracking-wide block">
+                    {valoresTarjeta.exp || 'MM/AA'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Campos de Entrada de Tarjeta */}
+            <div className="space-y-4">
+              <FormInput
+                label="Nombre en la Tarjeta"
+                required
+                value={valoresTarjeta.nombre}
+                onChange={(e) => setValoresTarjeta(prev => ({ ...prev, nombre: e.target.value }))}
+                placeholder="Ej: Juan Perez"
+              />
+
+              <FormInput
+                label="Número de Tarjeta"
+                required
+                maxLength={19}
+                value={valoresTarjeta.numero}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 ');
+                  setValoresTarjeta(prev => ({ ...prev, numero: val }));
+                }}
+                placeholder="0000 0000 0000 0000"
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormInput
+                  label="Vencimiento"
+                  required
+                  maxLength={5}
+                  value={valoresTarjeta.exp}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    const formatted = val.length >= 3 ? `${val.slice(0, 2)}/${val.slice(2, 4)}` : val;
+                    setValoresTarjeta(prev => ({ ...prev, exp: formatted }));
+                  }}
+                  placeholder="MM/AA"
+                />
+                <FormInput
+                  label="Código CVV"
+                  required
+                  type="password"
+                  maxLength={4}
+                  value={valoresTarjeta.cvv}
+                  onChange={(e) => setValoresTarjeta(prev => ({ ...prev, cvv: e.target.value.replace(/\D/g, '') }))}
+                  placeholder="•••"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+              <Button type="button" variant="secondary" onClick={() => setCheckoutOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                Pagar {checkoutPago ? formatPrecio(checkoutPago.monto) : '$0.00'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }
