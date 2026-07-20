@@ -68,7 +68,17 @@ export function ServiciosPage() {
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Cabecera Principal */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+        {/* Imagen de Fondo Completa con Difuminado */}
+        <div className="absolute inset-0 z-0 opacity-25 pointer-events-none blur-[1px]">
+          <img 
+            src="/services_banner_1784571844257.png" 
+            alt="Background Banner" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#121212] via-[#121212]/90 to-transparent" />
+        </div>
+
         <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         
         <div className="relative z-10 space-y-4 max-w-xl text-left">
@@ -196,14 +206,118 @@ export function ServiciosPage() {
               )}
             </div>
           ) : (
-            /* ================= VISTA CLIENTE ================= */
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white tracking-wide">Servicios Disponibles</h2>
-              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
-                Cargando servicios de a bordo...
+            /* ================= VISTA CLIENTE: TARJETAS DE SERVICIO ================= */
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white tracking-wide">Servicios Disponibles</h2>
+                <span className="text-xs text-gray-400">{filtrados.length} amenidades publicadas</span>
               </div>
+
+              {filtrados.length === 0 ? (
+                <div className="py-16 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm">
+                  No hay servicios adicionales configurados actualmente.
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filtrados.map((s) => {
+                    // Configuración visual por tipo de servicio
+                    const config = {
+                      comida: {
+                        cardBg: 'from-amber-600/10 via-amber-900/5 to-amber-950/0 border-amber-500/20 hover:border-amber-500/40',
+                        textTheme: 'text-amber-400',
+                        icon: (
+                          <svg className="h-6 w-6 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        ),
+                      },
+                      equipaje: {
+                        cardBg: 'from-blue-600/10 via-blue-900/5 to-blue-950/0 border-blue-500/20 hover:border-blue-500/40',
+                        textTheme: 'text-blue-400',
+                        icon: (
+                          <svg className="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                        ),
+                      },
+                      asiento: {
+                        cardBg: 'from-purple-600/10 via-purple-900/5 to-purple-950/0 border-purple-500/20 hover:border-purple-500/40',
+                        textTheme: 'text-purple-400',
+                        icon: (
+                          <svg className="h-6 w-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                          </svg>
+                        ),
+                      },
+                      wifi: {
+                        cardBg: 'from-cyan-600/10 via-cyan-900/5 to-cyan-950/0 border-cyan-500/20 hover:border-cyan-500/40',
+                        textTheme: 'text-cyan-400',
+                        icon: (
+                          <svg className="h-6 w-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071a10.5 10.5 0 0114.14 0M1.393 8.9a16.5 16.5 0 0121.214 0" />
+                          </svg>
+                        ),
+                      },
+                      seguro: {
+                        cardBg: 'from-emerald-600/10 via-emerald-900/5 to-emerald-950/0 border-emerald-500/20 hover:border-emerald-500/40',
+                        textTheme: 'text-emerald-400',
+                        icon: (
+                          <svg className="h-6 w-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                        ),
+                      },
+                      otro: {
+                        cardBg: 'from-stone-600/10 via-stone-900/5 to-stone-950/0 border-stone-500/20 hover:border-stone-500/40',
+                        textTheme: 'text-stone-400',
+                        icon: (
+                          <svg className="h-6 w-6 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                          </svg>
+                        ),
+                      },
+                    }[s.tipo.toLowerCase()] || {
+                      cardBg: 'from-white/5 to-white/0 border-white/10 hover:border-white/20',
+                      textTheme: 'text-stone-300',
+                      icon: (
+                        <svg className="h-6 w-6 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ),
+                    };
+
+                    return (
+                      <div key={s.id} className={`relative overflow-hidden rounded-3xl border bg-gradient-to-br backdrop-blur-md shadow-2xl p-6 flex flex-col justify-between min-h-[190px] w-full animate-scale-in transition-all hover:scale-[1.02] ${config.cardBg}`}>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                              Categoría: {s.tipo}
+                            </span>
+                            {config.icon}
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-base font-black text-white">{s.nombre}</h3>
+                            <p className="mt-1 text-xs text-stone-400 font-light min-h-[32px] leading-relaxed">
+                              {s.descripcion || 'Disfruta de este servicio exclusivo en tu próximo vuelo.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="pt-4 flex items-center justify-between border-t border-white/5 mt-4">
+                          <div className="text-left">
+                            <span className="text-[9px] text-gray-500 uppercase tracking-widest block font-mono">Tarifa Base</span>
+                            <span className="text-base font-black text-primary-light">{formatPrecio(s.precio)}</span>
+                          </div>
+                          <span className="text-[10px] text-stone-400 bg-white/5 border border-white/10 px-3 py-1 rounded-xl">
+                            Ref: #{s.id}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
         </div>
       )}
     </div>
