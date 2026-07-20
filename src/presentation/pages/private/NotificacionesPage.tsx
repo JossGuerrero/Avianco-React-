@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Notificacion } from '../../../domain/entities/Notificacion';
 import { TipoNotificacion } from '../../../domain/enums/TipoNotificacion';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
@@ -6,7 +6,24 @@ import { useAuthStore } from '../../store/authStore';
 import { useNotificacionesStore } from '../../store/notificacionesStore';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
+import { Modal } from '../../components/Modal';
+import { FormInput } from '../../components/FormInput';
+import { FormSelect } from '../../components/FormSelect';
 import { getErrorMessage } from '../../utils/formatters';
+
+interface NotificacionForm {
+  usuario: string;
+  tipo: TipoNotificacion;
+  titulo: string;
+  mensaje: string;
+}
+
+const FORM_VACIO: NotificacionForm = {
+  usuario: '',
+  tipo: TipoNotificacion.Info,
+  titulo: '',
+  mensaje: '',
+};
 
 export function NotificacionesPage() {
   const { user, isStaff } = useAuthStore();
@@ -18,6 +35,12 @@ export function NotificacionesPage() {
 
   // Filtros
   const [busqueda, setBusqueda] = useState<string>('');
+
+  // Estados para CRUD de Staff
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [form, setForm] = useState<NotificacionForm>(FORM_VACIO);
+  const [guardando, setGuardando] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -52,6 +75,63 @@ export function NotificacionesPage() {
       );
     });
   }, [visibles, busqueda]);
+
+  // Acciones interactiva
+  async function marcarLeida(notificacion: Notificacion) {
+    try {
+      await useCaseFactory.notificaciones.update(notificacion.id, { leida: true });
+      await cargar();
+      await cargarNoLeidas();
+    } catch (e) {
+      setError(getErrorMessage(e, 'No se pudo marcar como leída'));
+    }
+  }
+
+  async function handleEliminar(notificacion: Notificacion) {
+    if (!window.confirm(`¿Eliminar la notificación #${notificacion.id}?`)) return;
+    try {
+      await useCaseFactory.notificaciones.remove(notificacion.id);
+      await cargar();
+      await cargarNoLeidas();
+    } catch (e) {
+      setError(getErrorMessage(e, 'No se pudo eliminar la notificación'));
+    }
+  }
+
+  function abrirCrear() {
+    setForm(FORM_VACIO);
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const destUsuario = Number(form.usuario);
+    
+    if (!destUsuario || !form.titulo.trim() || !form.mensaje.trim()) {
+      setFormError('El ID de usuario destinatario, el título y el mensaje son obligatorios');
+      return;
+    }
+
+    setGuardando(true);
+    setFormError(null);
+    try {
+      await useCaseFactory.notificaciones.create({
+        usuario: destUsuario,
+        tipo: form.tipo,
+        titulo: form.titulo.trim(),
+        mensaje: form.mensaje.trim(),
+        leida: false,
+      });
+      setModalAbierto(false);
+      await cargar();
+      await cargarNoLeidas();
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'No se pudo emitir la notificación'));
+    } finally {
+      setGuardando(false);
+    }
+  }
 
   // Estadísticas del panel superior
   const stats = useMemo(() => {
@@ -171,7 +251,7 @@ export function NotificacionesPage() {
                     onChange={(e) => setBusqueda(e.target.value)}
                     className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
                   />
-                  <Button size="small">
+                  <Button size="small" onClick={abrirCrear}>
                     + Emitir Alerta
                   </Button>
                 </div>
@@ -205,7 +285,10 @@ export function NotificacionesPage() {
                             <Badge estado={n.leida ? 'leída' : 'no leída'} />
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                            <button
+                              onClick={() => handleEliminar(n)}
+                              className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1"
+                            >
                               Eliminar
                             </button>
                           </td>
@@ -231,7 +314,6 @@ export function NotificacionesPage() {
               ) : (
                 <div className="grid gap-6 md:grid-cols-2">
                   {filtradas.map((n) => {
-                    // Configuración visual según el tipo de aviso
                     const config = {
                       embarque: {
                         border: 'border-l-4 border-emerald-500',
@@ -338,6 +420,66 @@ export function NotificacionesPage() {
           )}
         </div>
       )}
+
+      {/* Modal de CRUD de Notificación (Staff) */}
+      <Modal
+        open={modalAbierto}
+        title="Emitir Alerta a Pasajero"
+        onClose={() => setModalAbierto(false)}
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
+          {formError && (
+            <p className="rounded-xl border border-primary/25 bg-primary/10 px-4 py-2 text-xs text-primary-light">
+              {formError}
+            </p>
+          )}
+
+          <FormInput
+            label="ID de Usuario Pasajero"
+            required
+            type="number"
+            value={form.usuario}
+            onChange={(e) => setForm((f) => ({ ...f, usuario: e.target.value }))}
+            placeholder="Ej: 5"
+          />
+
+          <FormSelect
+            label="Tipo de Notificación"
+            required
+            value={form.tipo}
+            onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as TipoNotificacion }))}
+            options={Object.values(TipoNotificacion).map((t) => ({
+              value: t,
+              label: t.charAt(0).toUpperCase() + t.slice(1),
+            }))}
+          />
+
+          <FormInput
+            label="Título del Mensaje"
+            required
+            value={form.titulo}
+            onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+            placeholder="Ej: Cambio de puerta de embarque"
+          />
+
+          <FormInput
+            label="Mensaje Corto"
+            required
+            value={form.mensaje}
+            onChange={(e) => setForm((f) => ({ ...f, mensaje: e.target.value }))}
+            placeholder="Escribe el contenido detallado de la alerta..."
+          />
+
+          <div className="mt-4 flex justify-end gap-3 border-t border-white/10 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setModalAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={guardando}>
+              {guardando ? 'Emitiendo...' : 'Enviar Alerta'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
