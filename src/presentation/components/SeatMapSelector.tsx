@@ -11,6 +11,7 @@ interface SeatMapSelectorProps {
   codigosOcupados?: Set<string>;
   value: string;
   onChange: (codigo: string) => void;
+  permiteSeleccionarOcupados?: boolean;
 }
 
 interface SeatCell {
@@ -60,6 +61,7 @@ export function SeatMapSelector({
   codigosOcupados,
   value,
   onChange,
+  permiteSeleccionarOcupados = false,
 }: SeatMapSelectorProps) {
   const esMapaReal = asientos.length > 0;
 
@@ -109,24 +111,32 @@ export function SeatMapSelector({
               <div key={i} className="flex items-center gap-1.5">
                 {fila.map((asiento, j) => {
                   const seleccionado = value === asiento.codigo;
-                  const esVIP = asiento.clase?.toUpperCase() === 'VIP' || asiento.clase?.toUpperCase() === 'PRIMERA';
-                  
+                  const esVIP =
+                    asiento.clase?.toUpperCase() === 'VIP' ||
+                    asiento.clase?.toUpperCase() === 'PRIMERA' ||
+                    asiento.clase?.toUpperCase() === 'BUSINESS';
+
                   let clases = '';
-                  if (!asiento.disponible) {
-                    clases = 'cursor-not-allowed border-dark-border/40 bg-dark-surface/30 text-gray-600/40 line-through';
-                  } else if (seleccionado) {
-                    clases = 'border-primary bg-gradient-to-b from-primary-light to-primary text-white scale-110 shadow-md shadow-primary/30 ring-2 ring-primary-light/35';
+                  if (seleccionado) {
+                    clases =
+                      'border-primary bg-gradient-to-b from-primary-light to-primary text-white scale-110 shadow-md shadow-primary/30 ring-2 ring-primary-light/35';
+                  } else if (!asiento.disponible) {
+                    clases = permiteSeleccionarOcupados
+                      ? 'border-primary/40 bg-primary/15 text-primary-light/80 hover:bg-primary/30 hover:scale-105'
+                      : 'cursor-not-allowed border-dark-border/40 bg-dark-surface/30 text-gray-600/40 line-through';
                   } else if (esVIP) {
-                    clases = 'border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500 hover:scale-105';
+                    clases =
+                      'border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500 hover:scale-105';
                   } else {
-                    clases = 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500 hover:scale-105';
+                    clases =
+                      'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500 hover:scale-105';
                   }
 
                   return (
                     <button
                       key={asiento.codigo}
                       type="button"
-                      disabled={!asiento.disponible}
+                      disabled={!permiteSeleccionarOcupados && !asiento.disponible}
                       onClick={() => onChange(seleccionado ? '' : asiento.codigo)}
                       title={
                         asiento.disponible

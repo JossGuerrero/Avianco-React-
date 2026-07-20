@@ -6,6 +6,7 @@ import { useCaseFactory } from '../../../infrastructure/factories/repository.fac
 import { useAuthStore } from '../../store/authStore';
 import { labelVuelo } from '../../utils/labels';
 import { getErrorMessage, formatFecha } from '../../utils/formatters';
+import { SeatMapSelector } from '../../components/SeatMapSelector';
 import type { Asiento } from '../../../domain/entities/Asiento';
 import type { Vuelo } from '../../../domain/entities/Vuelo';
 
@@ -17,9 +18,10 @@ export function AsientosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filtros y búsquedas
+  // Filtros, búsquedas y selección visual
   const [vueloSelId, setVueloSelId] = useState<string>('');
   const [busqueda, setBusqueda] = useState<string>('');
+  const [asientoSelCodigo, setAsientoSelCodigo] = useState<string>('');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -53,6 +55,12 @@ export function AsientosPage() {
     if (!vueloSelId) return [];
     return asientos.filter((a) => a.vuelo === Number(vueloSelId));
   }, [asientos, vueloSelId]);
+
+  // Asiento seleccionado visualmente
+  const seatSelected = useMemo(() => {
+    if (!asientoSelCodigo) return null;
+    return asientosDelVuelo.find((a) => a.codigo === asientoSelCodigo) || null;
+  }, [asientosDelVuelo, asientoSelCodigo]);
 
   // Asientos filtrados por búsqueda
   const asientosFiltrados = useMemo(() => {
@@ -123,6 +131,7 @@ export function AsientosPage() {
             onChange={(e) => {
               setVueloSelId(e.target.value);
               setBusqueda('');
+              setAsientoSelCodigo('');
             }}
             className="w-full bg-dark border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary-light transition-all duration-200 cursor-pointer"
           >
@@ -211,76 +220,172 @@ export function AsientosPage() {
             </div>
           </div>
 
-          {/* Listado de Asientos de Apoyo */}
-          <div className="bg-dark-surface/30 border border-dark-border rounded-3xl p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-dark-border pb-4">
-              <div>
-                <h2 className="text-lg font-bold text-white">Listado de Asientos</h2>
-                <p className="text-xs text-gray-400">Detalle de ubicaciones y disponibilidad física.</p>
-              </div>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <input
-                  type="text"
-                  placeholder="Buscar asiento..."
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  className="w-full sm:w-60 bg-dark border border-dark-border rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
-                />
-                {isStaff && (
-                  <Button size="small" className="whitespace-nowrap">
-                    Agregar Asiento
-                  </Button>
+          {/* Sección Interactiva: Mapa + Listado/Detalle */}
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
+            {/* Columna Izquierda: Mapa de Cabina del Avión */}
+            <div className="w-full lg:w-[320px] shrink-0 bg-dark-surface/40 border border-dark-border rounded-3xl p-5 shadow-lg">
+              <div className="flex items-center justify-between mb-4 border-b border-dark-border pb-2.5">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <svg className="h-4.5 w-4.5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11V4a1 1 0 00-1-1H4a1 1 0 00-1 1v7c0 2.117.383 4.143 1.082 6l.048.093m0 0a14.002 14.002 0 002.466 3.792m0 0A14.003 14.003 0 0112 21a14.003 14.003 0 014.162-1.618m0 0a14.002 14.002 0 002.466-3.792m0 0l.048-.093A14.003 14.003 0 0022 11V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v7c0 3.517-1.009 6.799-2.753 9.571" />
+                  </svg>
+                  Cabina de Pasajeros
+                </h3>
+                {asientoSelCodigo && (
+                  <button
+                    onClick={() => setAsientoSelCodigo('')}
+                    className="text-[10px] font-bold text-primary-light hover:text-white uppercase tracking-wider transition-colors"
+                  >
+                    Limpiar
+                  </button>
                 )}
               </div>
+              <SeatMapSelector
+                capacidad={stats.capacidadAvion}
+                asientos={asientosDelVuelo}
+                value={asientoSelCodigo}
+                onChange={(codigo) => {
+                  setAsientoSelCodigo(codigo);
+                }}
+                permiteSeleccionarOcupados={true}
+              />
             </div>
 
-            {asientosFiltrados.length === 0 ? (
-              <div className="py-12 text-center text-xs text-gray-500">
-                No se encontraron asientos con los criterios de búsqueda.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-dark-border/60 text-gray-500 uppercase tracking-wider">
-                      <th className="px-4 py-3 font-bold">Código</th>
-                      <th className="px-4 py-3 font-bold">Fila</th>
-                      <th className="px-4 py-3 font-bold">Columna</th>
-                      <th className="px-4 py-3 font-bold">Clase</th>
-                      <th className="px-4 py-3 font-bold">Estado</th>
-                      {isStaff && <th className="px-4 py-3 text-right font-bold">Acciones</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {asientosFiltrados.map((a) => (
-                      <tr key={a.id} className="border-b border-dark-border/30 last:border-b-0 hover:bg-dark-surface/20 transition-all">
-                        <td className="px-4 py-3 font-mono font-bold text-white">{a.codigo}</td>
-                        <td className="px-4 py-3 text-stone-300">{a.fila}</td>
-                        <td className="px-4 py-3 text-stone-300">{a.columna}</td>
-                        <td className="px-4 py-3 capitalize">
-                          <span className={a.clase === ClaseTarifa.Primera || a.clase === ClaseTarifa.Business ? 'text-amber-300 font-semibold' : 'text-stone-400'}>
-                            {a.clase}
+            {/* Columna Derecha: Detalle de Selección o Listado de Asientos */}
+            <div className="flex-1 w-full">
+              {seatSelected ? (
+                /* Detalle de Asiento Seleccionado */
+                <div className="bg-dark-surface/30 border border-primary/20 rounded-3xl p-6 shadow-xl relative overflow-hidden animate-scale-in">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl pointer-events-none" />
+                  
+                  <div className="flex items-start justify-between border-b border-dark-border pb-4 mb-5">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-primary-light tracking-wider block">Administración de Asiento</span>
+                      <h2 className="text-2xl font-black text-white mt-1">Ubicación: Asiento {seatSelected.codigo}</h2>
+                    </div>
+                    <Button variant="secondary" size="small" onClick={() => setAsientoSelCodigo('')}>
+                      Volver al listado
+                    </Button>
+                  </div>
+
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-4">
+                      <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl">
+                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">Clase de Asiento</span>
+                        <span className="text-base font-bold text-white capitalize mt-1 block">{seatSelected.clase}</span>
+                      </div>
+
+                      <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl">
+                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">Fila y Columna</span>
+                        <span className="text-base font-bold text-white mt-1 block">Fila {seatSelected.fila} · Columna {seatSelected.columna}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl">
+                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">Disponibilidad</span>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <Badge estado={seatSelected.disponible ? 'disponible' : 'ocupado'} />
+                          <span className="text-xs text-gray-400">
+                            {seatSelected.disponible ? 'Disponible para asignación' : 'Ocupado por una reserva'}
                           </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge estado={a.disponible ? 'disponible' : 'ocupado'} />
-                        </td>
-                        {isStaff && (
-                          <td className="px-4 py-3 text-right space-x-2">
-                            <button className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1">
-                              Editar
-                            </button>
-                            <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                        </div>
+                      </div>
+
+                      {isStaff && (
+                        <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl flex flex-col justify-center h-[90px]">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block mb-2">Acciones Administrativas</span>
+                          <div className="flex gap-3">
+                            <Button size="small" variant="secondary" className="flex-1">
+                              Editar Asiento
+                            </Button>
+                            <Button size="small" variant="danger" className="flex-1">
                               Eliminar
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Listado de Asientos de Apoyo */
+                <div className="bg-dark-surface/30 border border-dark-border rounded-3xl p-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-dark-border pb-4">
+                    <div>
+                      <h2 className="text-lg font-bold text-white">Listado de Asientos</h2>
+                      <p className="text-xs text-gray-400">Detalle de ubicaciones y disponibilidad física.</p>
+                    </div>
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <input
+                        type="text"
+                        placeholder="Buscar asiento..."
+                        value={busqueda}
+                        onChange={(e) => setBusqueda(e.target.value)}
+                        className="w-full sm:w-60 bg-dark border border-dark-border rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
+                      />
+                      {isStaff && (
+                        <Button size="small" className="whitespace-nowrap">
+                          Agregar Asiento
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {asientosFiltrados.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-gray-500">
+                      No se encontraron asientos con los criterios de búsqueda.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-dark-border/60 text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 font-bold">Código</th>
+                            <th className="px-4 py-3 font-bold">Fila</th>
+                            <th className="px-4 py-3 font-bold">Columna</th>
+                            <th className="px-4 py-3 font-bold">Clase</th>
+                            <th className="px-4 py-3 font-bold">Estado</th>
+                            {isStaff && <th className="px-4 py-3 text-right font-bold">Acciones</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {asientosFiltrados.map((a) => (
+                            <tr
+                              key={a.id}
+                              onClick={() => setAsientoSelCodigo(a.codigo)}
+                              className="border-b border-dark-border/30 last:border-b-0 hover:bg-dark-surface/20 transition-all cursor-pointer"
+                            >
+                              <td className="px-4 py-3 font-mono font-bold text-white">{a.codigo}</td>
+                              <td className="px-4 py-3 text-stone-300">{a.fila}</td>
+                              <td className="px-4 py-3 text-stone-300">{a.columna}</td>
+                              <td className="px-4 py-3 capitalize">
+                                <span className={a.clase === ClaseTarifa.Primera || a.clase === ClaseTarifa.Business ? 'text-amber-300 font-semibold' : 'text-stone-400'}>
+                                  {a.clase}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <Badge estado={a.disponible ? 'disponible' : 'ocupado'} />
+                              </td>
+                              {isStaff && (
+                                <td className="px-4 py-3 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => setAsientoSelCodigo(a.codigo)}
+                                    className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1"
+                                  >
+                                    Gestionar
+                                  </button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
