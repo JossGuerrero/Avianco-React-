@@ -7,6 +7,7 @@ interface SeatMapSelectorProps {
   codigosOcupados?: Set<string>;
   value: string;
   onChange: (codigo: string) => void;
+  permiteSeleccionarOcupados?: boolean;
 }
 
 interface SeatCell {
@@ -54,6 +55,7 @@ export function SeatMapSelector({
   codigosOcupados,
   value,
   onChange,
+  permiteSeleccionarOcupados = false,
 }: SeatMapSelectorProps) {
   const esMapaReal = asientos.length > 0;
 
@@ -70,13 +72,20 @@ export function SeatMapSelector({
   }, [esMapaReal, asientos, capacidad, codigosOcupados]);
 
   return (
-    <div>
-      <span className="text-sm font-medium text-gray-300">Asiento</span>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold tracking-wider text-gray-400 uppercase flex items-center gap-1.5">
+          <svg className="h-4 w-4 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+          </svg>
+          Selección de Asiento
+        </span>
+      </div>
+
       {!esMapaReal && (
-        <p className="mt-1 text-xs text-yellow-300/90">
-          Este vuelo aún no tiene asientos cargados: se muestra un mapa temporal según la
-          capacidad de la aeronave ({capacidad} asientos).
-        </p>
+        <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-3 text-[11px] text-yellow-300/90 leading-relaxed animate-fade-in">
+          <strong>Nota:</strong> No se detectó un mapa cargado para esta aeronave. Se generó una distribución estimada para {capacidad} asientos.
+        </div>
       )}
 
       <div className="mt-2 max-h-72 overflow-x-auto overflow-y-auto rounded-xl border border-dark-border bg-dark p-4">
@@ -88,23 +97,39 @@ export function SeatMapSelector({
               <div key={i} className="flex items-center gap-1.5">
                 {fila.map((asiento, j) => {
                   const seleccionado = value === asiento.codigo;
-                  const clases = asiento.disponible
-                    ? seleccionado
-                      ? 'border-primary bg-primary text-white scale-110 shadow-lg shadow-primary/40'
-                      : 'border-green-500/40 bg-green-500/10 text-green-300 hover:bg-green-500/25 hover:scale-105'
-                    : 'cursor-not-allowed border-primary/25 bg-primary/10 text-primary-light/40';
+                  const esVIP =
+                    asiento.clase?.toUpperCase() === 'VIP' ||
+                    asiento.clase?.toUpperCase() === 'PRIMERA' ||
+                    asiento.clase?.toUpperCase() === 'BUSINESS';
+
+                  let clases = '';
+                  if (seleccionado) {
+                    clases =
+                      'border-primary bg-gradient-to-b from-primary-light to-primary text-white scale-110 shadow-md shadow-primary/30 ring-2 ring-primary-light/35';
+                  } else if (!asiento.disponible) {
+                    clases = permiteSeleccionarOcupados
+                      ? 'border-primary/40 bg-primary/15 text-primary-light/80 hover:bg-primary/30 hover:scale-105'
+                      : 'cursor-not-allowed border-dark-border/40 bg-dark-surface/30 text-gray-600/40 line-through';
+                  } else if (esVIP) {
+                    clases =
+                      'border-amber-500/50 bg-amber-500/10 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500 hover:scale-105';
+                  } else {
+                    clases =
+                      'border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500 hover:scale-105';
+                  }
+
                   return (
                     <button
                       key={asiento.codigo}
                       type="button"
-                      disabled={!asiento.disponible}
+                      disabled={!permiteSeleccionarOcupados && !asiento.disponible}
                       onClick={() => onChange(seleccionado ? '' : asiento.codigo)}
                       title={
                         asiento.disponible
-                          ? `${asiento.codigo}${asiento.clase ? ` · ${asiento.clase}` : ''}`
-                          : `${asiento.codigo} · ocupado`
+                          ? `${asiento.codigo}${asiento.clase ? ` · Clase ${asiento.clase}` : ''}`
+                          : `${asiento.codigo} · Ocupado`
                       }
-                      className={`h-8 w-8 rounded-md border text-[10px] font-bold transition-all duration-150 ${clases} ${
+                      className={`h-8 w-8 rounded-lg border text-[10px] font-black transition-all duration-200 focus:outline-none ${clases} ${
                         j === mitad ? 'ml-5' : ''
                       }`}
                     >
@@ -116,6 +141,7 @@ export function SeatMapSelector({
             );
           })}
         </div>
+      </div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-400">
