@@ -429,7 +429,15 @@ export function ReservaServiciosPage() {
           <FormSelect
             label="Servicio"
             value={valores.servicio}
-            onChange={(e) => setValores((v) => ({ ...v, servicio: e.target.value }))}
+            onChange={(e) => {
+              const selectedId = Number(e.target.value);
+              const matchingServicio = serviciosPorId.get(selectedId);
+              setValores((v) => ({
+                ...v,
+                servicio: e.target.value,
+                precio_aplicado: matchingServicio ? String(matchingServicio.precio) : v.precio_aplicado
+              }));
+            }}
             placeholder="Selecciona un servicio"
             options={servicios.map((s) => ({
               value: String(s.id),
