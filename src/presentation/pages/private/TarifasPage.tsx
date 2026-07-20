@@ -70,10 +70,10 @@ export function TarifasPage() {
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Cabecera Principal */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
+        <div className="relative z-10 space-y-4 max-w-xl text-left">
           <div>
             <div className="flex items-center gap-2">
               <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -84,12 +84,22 @@ export function TarifasPage() {
             <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
               Tarifas y <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Clases de Vuelo</span>
             </h1>
-            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+            <p className="mt-2 text-xs text-gray-400 leading-relaxed">
               {isStaff 
                 ? 'Configura las clases de vuelo disponibles en la flota, aplica descuentos globales de temporada y gestiona los beneficios incluidos.'
                 : 'Compara nuestras clases de viaje, desde nuestra cabina turista económica hasta la exclusividad de Primera Clase.'}
             </p>
           </div>
+        </div>
+
+        {/* Banner Generado por IA */}
+        <div className="relative w-full md:w-64 h-24 rounded-2xl overflow-hidden border border-white/10 shadow-lg hidden md:block">
+          <img 
+            src="/fares_banner_1784570424812.png" 
+            alt="Fares Banner" 
+            className="w-full h-full object-cover opacity-80"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-dark/80 to-transparent" />
         </div>
       </div>
 
@@ -205,11 +215,134 @@ export function TarifasPage() {
             </div>
           ) : (
             /* ================= VISTA CLIENTE: COMPARADOR DE PLANES ================= */
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white tracking-wide">Clases de Viaje Disponibles</h2>
-              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
-                Cargando opciones de viaje...
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white tracking-wide">Planes y Beneficios de Cabina</h2>
+                <span className="text-xs text-gray-400">{filtradas.length} tarifas de vuelo publicadas</span>
               </div>
+
+              {filtradas.length === 0 ? (
+                <div className="py-16 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm">
+                  No hay tarifas configuradas para comparar actualmente.
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {filtradas.map((t) => {
+                    // Configuración visual según clase de cabina
+                    const config = {
+                      economica: {
+                        cardBg: 'from-amber-700/5 to-amber-900/0 border-amber-700/20 hover:border-amber-700/40',
+                        textTheme: 'text-amber-400',
+                        glowColor: 'bg-amber-400/10 text-amber-300',
+                        label: 'Clase Turista',
+                        badgeStyle: 'bg-gradient-to-r from-amber-700 to-amber-600 text-amber-100',
+                        beneficios: [
+                          { ok: true, text: 'Equipaje de mano (10kg)' },
+                          { ok: true, text: 'Asiento aleatorio estándar' },
+                          { ok: false, text: 'Equipaje facturado en bodega (23kg)' },
+                          { ok: false, text: 'Embarque prioritario' },
+                          { ok: false, text: 'Acceso a Sala VIP Avianco' },
+                        ],
+                      },
+                      business: {
+                        cardBg: 'from-slate-400/5 to-slate-600/0 border-slate-400/20 hover:border-slate-400/40 shadow-blue-500/5',
+                        textTheme: 'text-blue-300',
+                        glowColor: 'bg-blue-400/10 text-blue-300',
+                        label: 'Clase Ejecutiva',
+                        badgeStyle: 'bg-gradient-to-r from-slate-500 to-slate-400 text-slate-900 font-bold',
+                        beneficios: [
+                          { ok: true, text: 'Equipaje de mano (10kg)' },
+                          { ok: true, text: 'Selección de asiento estándar' },
+                          { ok: true, text: 'Equipaje facturado (1 pieza 23kg)' },
+                          { ok: true, text: 'Embarque preferencial (Grupo 2)' },
+                          { ok: false, text: 'Acceso a Sala VIP Avianco' },
+                        ],
+                      },
+                      primera: {
+                        cardBg: 'from-purple-900/10 to-purple-950/0 border-purple-500/30 hover:border-purple-500/50 shadow-purple-500/10 scale-100 lg:scale-[1.02]',
+                        textTheme: 'text-purple-300',
+                        glowColor: 'bg-purple-400/15 text-purple-300',
+                        label: 'Primera Clase',
+                        badgeStyle: 'bg-gradient-to-r from-yellow-500 to-amber-400 text-amber-950 font-black',
+                        beneficios: [
+                          { ok: true, text: 'Equipaje de mano (10kg) + Bolso' },
+                          { ok: true, text: 'Selección libre de asientos premium/salida' },
+                          { ok: true, text: '2 Equipajes facturados (23kg c/u)' },
+                          { ok: true, text: 'Abordaje prioritario (Grupo 1)' },
+                          { ok: true, text: 'Acceso ilimitado a Sala VIP Avianco' },
+                        ],
+                      },
+                    }[t.clase.toLowerCase()] || {
+                      cardBg: 'from-white/5 to-white/0 border-white/10 hover:border-white/20',
+                      textTheme: 'text-stone-300',
+                      glowColor: 'bg-white/10 text-white',
+                      label: 'Cabina Estándar',
+                      badgeStyle: 'bg-stone-500 text-white',
+                      beneficios: [
+                        { ok: true, text: 'Asiento básico' },
+                        { ok: false, text: 'Servicios extras' },
+                      ],
+                    };
+
+                    return (
+                      <div key={t.id} className={`relative overflow-hidden rounded-3xl border bg-gradient-to-b backdrop-blur-md shadow-2xl p-6 flex flex-col justify-between min-h-[460px] w-full animate-scale-in transition-all ${config.cardBg}`}>
+                        
+                        {/* Cabecera de la Tarjeta */}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[10px] uppercase font-black px-2.5 py-1 rounded-full ${config.badgeStyle}`}>
+                              {config.label}
+                            </span>
+                            {Number(t.descuento) > 0 && (
+                              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                                -{Number(t.descuento)}% Descuento
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-left">
+                            <h3 className="text-lg font-black text-white">{t.nombre}</h3>
+                            <p className="mt-1 text-xs text-stone-400 font-light min-h-[32px] leading-relaxed">
+                              {t.descripcion || 'Disfruta del mejor confort a bordo con Avianco.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Listado de Beneficios */}
+                        <div className="py-6 border-y border-white/5 space-y-3 text-left">
+                          <span className="text-[9px] text-gray-500 uppercase tracking-widest block font-mono">Servicios Incluidos</span>
+                          <ul className="space-y-2.5">
+                            {config.beneficios.map((b, idx) => (
+                              <li key={idx} className="flex items-start gap-2.5 text-xs text-stone-200">
+                                {b.ok ? (
+                                  <svg className="h-4.5 w-4.5 text-emerald-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  <svg className="h-4.5 w-4.5 text-stone-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                )}
+                                <span className={b.ok ? 'font-medium' : 'text-stone-500 line-through'}>{b.text}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        {/* Pie de Tarjeta / Información de Descuento */}
+                        <div className="pt-4 flex items-center justify-between gap-4">
+                          <div className="text-left">
+                            <span className="text-[9px] text-gray-500 uppercase tracking-widest block font-mono">Cabina Base</span>
+                            <span className={`text-sm font-black ${config.textTheme} capitalize`}>{t.clase}</span>
+                          </div>
+                          <span className="text-[10px] text-stone-400 bg-white/5 border border-white/10 px-3 py-1 rounded-xl">
+                            Ref: #{t.id}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
