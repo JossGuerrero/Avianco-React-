@@ -330,25 +330,74 @@ export function ReservasPage() {
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          {isStaff ? 'Todas las ' : 'Mis '}
-          <span className="text-primary">reservas</span>
-        </h1>
-        {/* La creación manual (sin pago) es gestión administrativa: solo staff.
-            El cliente reserva únicamente por Vuelos → Reservar → checkout. */}
-        {isStaff && <Button onClick={abrirCrear}>+ Nueva reserva</Button>}
+    <div className="relative min-h-[600px] max-w-6xl mx-auto space-y-8 px-4 sm:px-6 py-2">
+      {/* Fondo de pantalla de vuelo difuminado (Efecto atmósfera premium sin cortes) */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center opacity-25 blur-[100px] scale-115 pointer-events-none -z-10"
+        style={{ backgroundImage: "url('/scenic_flight.png')" }}
+      />
+
+      {/* Banner de Bienvenida con Imagen de Fondo (Estilo Slate Auto + Aerolínea) */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/60 shadow-2xl h-80 sm:h-64 flex items-center">
+        {/* Foto del avión de fondo a la derecha con degradado para lectura */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-45 sm:opacity-65"
+          style={{ 
+            backgroundImage: "url('/airplane_sunset.png')",
+          }}
+        />
+        {/* Degradado negro a la izquierda para garantizar legibilidad del texto */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent z-0" />
+        
+        {/* Contenido del Banner */}
+        <div className="relative z-10 p-6 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-6">
+          <div className="space-y-2.5 max-w-xl text-left">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/30 px-3 py-1 text-xs font-semibold text-primary-light">
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {isStaff ? 'Panel de Control' : 'Mis Viajes'}
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+              {isStaff ? 'Todas las ' : 'Mis '}
+              <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Reservas</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-gray-400 leading-relaxed">
+              {isStaff 
+                ? "Bitácora global de vuelos reservados. Gestiona, modifica y controla los check-ins de toda la red de aeronaves." 
+                : "Consulta tu itinerario de vuelo, realiza tu check-in digital y descarga tu tarjeta de embarque para tu próxima aventura."}
+            </p>
+          </div>
+          {isStaff && (
+            <div className="shrink-0 z-10 w-full sm:w-auto">
+              <Button 
+                onClick={abrirCrear}
+                className="w-full sm:w-auto shadow-lg shadow-primary/20 hover:shadow-primary/35 transition-all duration-300 py-3 px-6 text-sm font-bold bg-primary hover:bg-primary-dark"
+              >
+                + Nueva Reserva
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       {!isStaff && (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-          <p className="text-sm text-gray-300">
-            ¿Quieres viajar? Para reservar, ve a <span className="font-semibold text-white">Vuelos</span>,
-            elige tu vuelo y completa el pago en el checkout.
-          </p>
-          <Link to="/vuelos">
-            <Button>Buscar vuelos</Button>
+        <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-[#3d0b13]/40 backdrop-blur-md p-5 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-5 animate-fade-in">
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0 h-12 w-12 rounded-full overflow-hidden border border-primary/30 shadow-inner">
+              <img src="/flight_attendant.png" alt="Asistente de Vuelo" className="h-full w-full object-cover" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs font-semibold text-primary-light uppercase tracking-wider">¿Listo para un nuevo destino?</p>
+              <p className="text-xs text-gray-300 mt-0.5 leading-relaxed">
+                Elige tu vuelo de exploración, selecciona tu asiento VIP o Económico y completa tu pago para asegurar tu pase de abordar.
+              </p>
+            </div>
+          </div>
+          <Link to="/vuelos" className="shrink-0 w-full sm:w-auto">
+            <Button className="w-full sm:w-auto bg-primary hover:bg-primary-dark shadow-md text-xs font-bold py-2.5">
+              Buscar Vuelos
+            </Button>
           </Link>
         </div>
       )}
