@@ -93,8 +93,28 @@ export function PasajerosPage() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!form.numero_pasaporte.trim() || !form.nacionalidad || !form.fecha_nacimiento) {
+    const passportClean = form.numero_pasaporte.trim();
+    if (!passportClean || !form.nacionalidad || !form.fecha_nacimiento) {
       setFormError('Pasaporte, nacionalidad y fecha de nacimiento son obligatorios');
+      return;
+    }
+    // Validar formato del pasaporte: alfanumérico de 6 a 15 caracteres
+    const pasaporteRegex = /^[A-Z0-9]{6,15}$/i;
+    if (!pasaporteRegex.test(passportClean)) {
+      setFormError('El número de pasaporte debe ser alfanumérico y tener entre 6 y 15 caracteres');
+      return;
+    }
+    // Validar teléfono (opcional pero de formato válido)
+    if (form.telefono.trim()) {
+      const telRegex = /^\+?[0-9\s\-]{7,20}$/;
+      if (!telRegex.test(form.telefono.trim())) {
+        setFormError('El número de teléfono ingresado no tiene un formato válido');
+        return;
+      }
+    }
+    // Validar que la fecha de nacimiento no sea futura
+    if (new Date(form.fecha_nacimiento) > new Date()) {
+      setFormError('La fecha de nacimiento no puede ser en el futuro');
       return;
     }
     setGuardando(true);
