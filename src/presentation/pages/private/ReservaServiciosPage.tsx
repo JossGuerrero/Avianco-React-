@@ -1,24 +1,27 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import type { ReservaServicio } from '../../../domain/entities/ReservaServicio';
+import type { Reserva } from '../../../domain/entities/Reserva';
+import type { Servicio } from '../../../domain/entities/Servicio';
+import type { Pasajero } from '../../../domain/entities/Pasajero';
+import type { Vuelo } from '../../../domain/entities/Vuelo';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
-import { useLista } from '../../utils/useLista';
 import { DataTable } from '../../components/DataTable';
 import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
-import { labelReserva } from '../../utils/labels';
 import { formatPrecio, getErrorMessage } from '../../utils/formatters';
 
 export function ReservaServiciosPage() {
-  const isStaff = useAuthStore((state) => state.isStaff);
-  const reservas = useLista(useCaseFactory.reservas);
-  const servicios = useLista(useCaseFactory.servicios);
-  const serviciosPorId = useMemo(() => new Map(servicios.map((s) => [s.id, s])), [servicios]);
+  const { user, isStaff } = useAuthStore();
 
   const [reservaServicios, setReservaServicios] = useState<ReservaServicio[]>([]);
+  const [reservas, setReservas] = useState<Reserva[]>([]);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [pasajeros, setPasajeros] = useState<Pasajero[]>([]);
+  const [vuelos, setVuelos] = useState<Vuelo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,14 +36,45 @@ export function ReservaServiciosPage() {
   const [guardando, setGuardando] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Maps para búsquedas rápidas
+  const serviciosPorId = useMemo(() => new Map(servicios.map((s) => [s.id, s])), [servicios]);
+  const reservasPorId = useMemo(() => new Map(reservas.map((r) => [r.id, r])), [reservas]);
+  const pasajerosPorId = useMemo(() => new Map(pasajeros.map((p) => [p.id, p])), [pasajeros]);
+  const vuelosPorId = useMemo(() => new Map(vuelos.map((v) => [v.id, v])), [vuelos]);
+
+  // Pasajeros del cliente actual (el staff ve todos)
+  const misPasajerosIds = useMemo(() => {
+    return new Set(pasajeros.filter((p) => isStaff || p.usuario === user?.id).map((p) => p.id));
+  }, [pasajeros, isStaff, user]);
+
+  // Reservas visibles (del cliente o todas)
+  const misReservasIds = useMemo(() => {
+    return new Set(reservas.filter((r) => isStaff || misPasajerosIds.has(r.pasajero)).map((r) => r.id));
+  }, [reservas, misPasajerosIds, isStaff]);
+
+  // Filtrar servicios de reserva correspondientes
+  const serviciosVisibles = useMemo(() => {
+    return reservaServicios.filter((rs) => isStaff || misReservasIds.has(rs.reserva));
+  }, [reservaServicios, misReservasIds, isStaff]);
+
   const cargar = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await useCaseFactory.reservaServicios.getAll();
-      setReservaServicios(data);
+      const [rsData, rData, sData, pData, vData] = await Promise.all([
+        useCaseFactory.reservaServicios.getAll(),
+        useCaseFactory.reservas.getAll().catch(() => []),
+        useCaseFactory.servicios.getAll().catch(() => []),
+        useCaseFactory.pasajeros.getAll().catch(() => []),
+        useCaseFactory.getVuelosUseCase.execute().catch(() => []),
+      ]);
+      setReservaServicios(rsData);
+      setReservas(rData);
+      setServicios(sData);
+      setPasajeros(pData);
+      setVuelos(vData);
     } catch (e) {
-      setError(getErrorMessage(e, 'No se pudieron cargar los servicios de reserva'));
+      setError(getErrorMessage(e, 'No se pudieron cargar los datos'));
     } finally {
       setLoading(false);
     }
@@ -50,10 +84,21 @@ export function ReservaServiciosPage() {
     cargar();
   }, [cargar]);
 
+  function labelReservaLocal(id: number): string {
+    const res = reservasPorId.get(id);
+    if (!res) return `Reserva #${id}`;
+    const pas = pasajerosPorId.get(res.pasajero);
+    const vue = vuelosPorId.get(res.vuelo);
+    const ruta = vue ? `${vue.origen_detalle?.codigo_iata ?? 'SLO'} → ${vue.destino_detalle?.codigo_iata ?? 'DST'}` : `Vuelo #${res.vuelo}`;
+    const nombrePasajero = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${res.pasajero}`;
+    return `#${res.id} · ${nombrePasajero} (${ruta})`;
+  }
+
   function abrirCrear() {
     setEditando(null);
+    const reservasDisponibles = reservas.filter((r) => isStaff || misReservasIds.has(r.id));
     setValores({
-      reserva: reservas.length > 0 ? String(reservas[0].id) : '',
+      reserva: reservasDisponibles.length > 0 ? String(reservasDisponibles[0].id) : '',
       servicio: servicios.length > 0 ? String(servicios[0].id) : '',
       cantidad: '1',
       precio_aplicado: '0',
@@ -107,6 +152,52 @@ export function ReservaServiciosPage() {
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudo eliminar el servicio de reserva'));
     }
+  }
+
+  // Retornar ícono correspondiente según nombre del servicio
+  function renderIconoServicio(nombre: string) {
+    const n = nombre.toLowerCase();
+    if (n.includes('equipaje') || n.includes('maleta') || n.includes('bolsa')) {
+      return (
+        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      );
+    }
+    if (n.includes('comida') || n.includes('almuerzo') || n.includes('bebida') || n.includes('menu')) {
+      return (
+        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707-.707M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    }
+    if (n.includes('prioridad') || n.includes('embarque') || n.includes('rapido')) {
+      return (
+        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+        </svg>
+      );
+    }
+    if (n.includes('mascota') || n.includes('perro') || n.includes('gato') || n.includes('cabina')) {
+      return (
+        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.871 4A17.926 17.926 0 003 12c0 5.186 2.447 9.8 6.262 12.75M9 9c0-1.657 1.343-3 3-3s3 1.343 3 3-1.343 3-3 3-3-1.343-3-3z" />
+        </svg>
+      );
+    }
+    if (n.includes('sala') || n.includes('vip') || n.includes('lounge')) {
+      return (
+        <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+        </svg>
+      );
+    }
+    // Ícono por defecto
+    return (
+      <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+      </svg>
+    );
   }
 
   return (
@@ -188,37 +279,107 @@ export function ReservaServiciosPage() {
         </p>
       )}
 
-      {/* Temporal table placeholder for Commit 1 */}
+      {/* Renderizado de Datos: Tabla para Staff, Tarjetas Negras Difuminadas para Clientes */}
       <div className="mt-6">
-        <DataTable
-          columns={[
-            { header: 'Reserva', render: (rs) => `Reserva #${rs.reserva}` },
-            { header: 'Servicio', render: (rs) => serviciosPorId.get(rs.servicio)?.nombre ?? `#${rs.servicio}` },
-            { header: 'Cantidad', render: (rs) => rs.cantidad },
-            {
-              header: 'Precio aplicado',
-              render: (rs) => <span className="font-semibold">{formatPrecio(rs.precio_aplicado)}</span>,
-            },
-          ]}
-          data={reservaServicios}
-          getRowId={(rs) => rs.id}
-          loading={loading}
-          emptyMessage="No hay servicios registrados"
-          actions={
-            isStaff
-              ? (rs) => (
-                  <>
-                    <Button variant="secondary" onClick={() => abrirEditar(rs)}>
-                      Editar
-                    </Button>
-                    <Button variant="danger" onClick={() => eliminar(rs)}>
-                      Eliminar
-                    </Button>
-                  </>
-                )
-              : undefined
-          }
-        />
+        {loading ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="animate-pulse rounded-2xl border border-dark-border bg-dark-surface p-6 h-40" />
+            ))}
+          </div>
+        ) : serviciosVisibles.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-dark-border bg-dark-surface/50 p-12 text-center">
+            <svg className="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="mt-4 text-lg font-bold text-white">Sin servicios adicionales</h3>
+            <p className="mt-1 text-sm text-gray-400">Las reservas consultadas no registran servicios o maletas adicionales aún.</p>
+          </div>
+        ) : isStaff ? (
+          <DataTable
+            columns={[
+              { header: 'Reserva', render: (rs) => `Reserva #${rs.reserva}` },
+              { header: 'Servicio', render: (rs) => serviciosPorId.get(rs.servicio)?.nombre ?? `#${rs.servicio}` },
+              { header: 'Cantidad', render: (rs) => rs.cantidad },
+              {
+                header: 'Precio aplicado',
+                render: (rs) => <span className="font-semibold">{formatPrecio(rs.precio_aplicado)}</span>,
+              },
+            ]}
+            data={serviciosVisibles}
+            getRowId={(rs) => rs.id}
+            loading={loading}
+            emptyMessage="No hay servicios registrados"
+            actions={(rs) => (
+              <>
+                <Button variant="secondary" onClick={() => abrirEditar(rs)}>
+                  Editar
+                </Button>
+                <Button variant="danger" onClick={() => eliminar(rs)}>
+                  Eliminar
+                </Button>
+              </>
+            )}
+          />
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {serviciosVisibles.map((rs) => {
+              const servicio = serviciosPorId.get(rs.servicio);
+              const reserva = reservasPorId.get(rs.reserva);
+              const vuelo = reserva ? vuelosPorId.get(reserva.vuelo) : null;
+              const pasajero = reserva ? pasajerosPorId.get(reserva.pasajero) : null;
+
+              const ruta = vuelo ? `${vuelo.origen_detalle?.codigo_iata ?? 'SLO'} → ${vuelo.destino_detalle?.codigo_iata ?? 'DST'}` : `Vuelo #${reserva?.vuelo}`;
+              const nombrePasajero = pasajero ? (pasajero.nombre_completo || pasajero.numero_pasaporte) : `Pasajero #${reserva?.pasajero}`;
+
+              return (
+                <div 
+                  key={rs.id}
+                  className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-black/85 to-[#3d0b13]/25 backdrop-blur-md p-6 shadow-xl flex flex-col justify-between min-h-[180px] transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:shadow-[0_8px_35px_rgb(211,47,47,0.15)] animate-fade-in text-left"
+                >
+                  <div className="space-y-4">
+                    {/* Encabezado de la Tarjeta */}
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-primary/10 border border-primary/20 rounded-xl">
+                          {renderIconoServicio(servicio?.nombre ?? '')}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-white leading-tight">{servicio?.nombre ?? 'Servicio Adicional'}</h3>
+                          <span className="text-[10px] text-primary-light font-bold uppercase tracking-wider">{servicio?.categoria ?? 'Catálogo'}</span>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold text-gray-500">COD #{rs.id}</span>
+                    </div>
+
+                    {/* Detalles de Reserva Relacionada */}
+                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-white/10 pt-3">
+                      <div>
+                        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block">Reserva / Ruta</span>
+                        <span className="font-semibold text-stone-200 block truncate">{ruta}</span>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block">Pasajero</span>
+                        <span className="font-semibold text-stone-200 block truncate">{nombrePasajero}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Precios y Cantidades */}
+                  <div className="border-t border-white/10 pt-3 mt-4 flex items-center justify-between">
+                    <div>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider block">Total Adicional</span>
+                      <span className="text-base font-black text-amber-300">{formatPrecio(rs.precio_aplicado * rs.cantidad)}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-gray-400 font-semibold">{formatPrecio(rs.precio_aplicado)} x {rs.cantidad}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <Modal
@@ -232,7 +393,7 @@ export function ReservaServiciosPage() {
             value={valores.reserva}
             onChange={(e) => setValores((v) => ({ ...v, reserva: e.target.value }))}
             placeholder="Selecciona una reserva"
-            options={reservas.map((r) => ({ value: String(r.id), label: labelReserva(r) }))}
+            options={reservas.map((r) => ({ value: String(r.id), label: labelReservaLocal(r.id) }))}
           />
           <FormSelect
             label="Servicio"
