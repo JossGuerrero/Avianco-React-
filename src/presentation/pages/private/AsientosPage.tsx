@@ -4,10 +4,8 @@ import { Button } from '../../components/Button';
 import { ClaseTarifa } from '../../../domain/enums/ClaseTarifa';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
-import { labelVuelo } from '../../utils/labels';
 import { getErrorMessage } from '../../utils/formatters';
 import { SeatMapSelector } from '../../components/SeatMapSelector';
-import { Modal } from '../../components/Modal';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
 import type { Asiento } from '../../../domain/entities/Asiento';
@@ -21,14 +19,12 @@ export function AsientosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filtros, búsquedas y selección visual
+  // Estados de control
   const [vueloSelId, setVueloSelId] = useState<string>('');
-  const [busqueda, setBusqueda] = useState<string>('');
   const [asientoSelCodigo, setAsientoSelCodigo] = useState<string>('');
+  const [creandoNuevo, setCreandoNuevo] = useState<boolean>(false);
 
-  // Estados para CRUD
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [editando, setEditando] = useState<Asiento | null>(null);
+  // Formulario en panel lateral
   const [valores, setValores] = useState({
     codigo: '',
     fila: '',
@@ -60,41 +56,46 @@ export function AsientosPage() {
     cargar();
   }, [cargar]);
 
-  // Vuelo seleccionado completo
+  // Vuelo seleccionado
   const vueloSeleccionado = useMemo(() => {
     if (!vueloSelId) return null;
     return vuelos.find((v) => v.id === Number(vueloSelId)) || null;
   }, [vuelos, vueloSelId]);
 
-  // Asientos del vuelo seleccionado
+  // Asientos del vuelo activo
   const asientosDelVuelo = useMemo(() => {
     if (!vueloSelId) return [];
     return asientos.filter((a) => a.vuelo === Number(vueloSelId));
   }, [asientos, vueloSelId]);
 
-  // Asiento seleccionado visualmente
+  // Asiento actualmente seleccionado en el panel
   const seatSelected = useMemo(() => {
     if (!asientoSelCodigo) return null;
     return asientosDelVuelo.find((a) => a.codigo.toUpperCase() === asientoSelCodigo.toUpperCase()) || null;
   }, [asientosDelVuelo, asientoSelCodigo]);
 
-  // Asientos filtrados por búsqueda
-  const asientosFiltrados = useMemo(() => {
-    return asientosDelVuelo.filter((a) =>
-      a.codigo.toLowerCase().includes(busqueda.toLowerCase()) ||
-      a.clase.toLowerCase().includes(busqueda.toLowerCase())
-    );
-  }, [asientosDelVuelo, busqueda]);
+  // Sincronizar formulario al seleccionar un asiento para editar
+  useEffect(() => {
+    if (seatSelected) {
+      setValores({
+        codigo: seatSelected.codigo,
+        fila: String(seatSelected.fila),
+        columna: seatSelected.columna,
+        clase: seatSelected.clase,
+        disponible: seatSelected.disponible,
+      });
+      setFormError(null);
+      setCreandoNuevo(false);
+    }
+  }, [seatSelected]);
 
-  // Estadísticas calculadas
+  // Estadísticas del vuelo seleccionado
   const stats = useMemo(() => {
     const totalCargados = asientosDelVuelo.length;
     const ocupados = asientosDelVuelo.filter((a) => !a.disponible).length;
     const disponibles = asientosDelVuelo.filter((a) => a.disponible).length;
     const vip = asientosDelVuelo.filter((a) => a.clase === ClaseTarifa.Primera || a.clase === ClaseTarifa.Business).length;
     const economica = asientosDelVuelo.filter((a) => a.clase === ClaseTarifa.Economica).length;
-    
-    // Capacidad teórica del avión
     const capacidadAvion = vueloSeleccionado?.aeronave_detalle?.capacidad || 0;
     
     return {
@@ -107,9 +108,9 @@ export function AsientosPage() {
     };
   }, [asientosDelVuelo, vueloSeleccionado]);
 
-  // Funciones CRUD
-  function abrirCrear() {
-    setEditando(null);
+  // Activar modo creación en el panel lateral
+  function activarCrear() {
+    setAsientoSelCodigo('');
     setValores({
       codigo: '',
       fila: '',
@@ -118,24 +119,12 @@ export function AsientosPage() {
       disponible: true,
     });
     setFormError(null);
-    setModalAbierto(true);
+    setCreandoNuevo(true);
   }
 
-  function abrirEditar(asiento: Asiento) {
-    setEditando(asiento);
-    setValores({
-      codigo: asiento.codigo,
-      fila: String(asiento.fila),
-      columna: asiento.columna,
-      clase: asiento.clase,
-      disponible: asiento.disponible,
-    });
-    setFormError(null);
-    setModalAbierto(true);
-  }
-
-  async function eliminar(asiento: Asiento) {
-    if (!window.confirm(`¿Eliminar el asiento ${asiento.codigo}?`)) return;
+  // Eliminar un asiento
+  async function handleEliminar(asiento: Asiento) {
+    if (!window.confirm(`¿Estás seguro de eliminar el asiento ${asiento.codigo}?`)) return;
     try {
       await useCaseFactory.asientos.remove(asiento.id);
       setAsientoSelCodigo('');
@@ -145,11 +134,12 @@ export function AsientosPage() {
     }
   }
 
-  async function handleSubmit(event: FormEvent) {
+  // Guardar (Creación o Edición)
+  async function handleGuardar(event: FormEvent) {
     event.preventDefault();
     const filaNum = Number(valores.fila);
     if (!valores.codigo.trim() || !valores.columna.trim() || Number.isNaN(filaNum) || filaNum <= 0) {
-      setFormError('Código, columna y fila (número positivo) son obligatorios');
+      setFormError('El código, columna y fila (número positivo) son requeridos');
       return;
     }
     setGuardando(true);
@@ -163,172 +153,194 @@ export function AsientosPage() {
         columna: valores.columna.trim().toUpperCase(),
         disponible: valores.disponible,
       };
-      if (editando) {
-        await useCaseFactory.asientos.update(editando.id, input);
-      } else {
+
+      if (creandoNuevo) {
         await useCaseFactory.asientos.create(input);
+        setCreandoNuevo(false);
+      } else if (seatSelected) {
+        await useCaseFactory.asientos.update(seatSelected.id, input);
       }
-      setModalAbierto(false);
+      
       await cargar();
-      if (editando && asientoSelCodigo.toUpperCase() === editando.codigo.toUpperCase()) {
-        setAsientoSelCodigo(input.codigo);
-      }
+      setAsientoSelCodigo(input.codigo); // Mantener seleccionado
     } catch (e) {
-      setFormError(getErrorMessage(e, 'No se pudo guardar el asiento'));
+      setFormError(getErrorMessage(e, 'Ocurrió un error al guardar el asiento'));
     } finally {
       setGuardando(false);
     }
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Banner de Cabecera Premium */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-dark-surface via-dark-surface to-primary/10 border border-dark-border p-6 sm:p-8 shadow-xl">
-        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+    <div className="relative space-y-8 animate-fade-in pb-12">
+      {/* Elementos de Iluminación Ambiental (Estilo Espejo Glass) */}
+      <div className="absolute top-10 left-10 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 right-10 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Cabecera Principal */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
         
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
           <div>
             <div className="flex items-center gap-2">
-              <svg className="h-6 w-6 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+              <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
-              <span className="text-xs font-bold tracking-widest text-primary-light uppercase">Operaciones de Flota</span>
+              <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Panel de Control de Aviones</span>
             </div>
-            <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl text-white">
-              Gestión de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Asientos</span>
+            <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
+              Configurador de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Asientos de Vuelo</span>
             </h1>
-            <p className="mt-2 text-sm text-gray-400 max-w-xl">
-              Configura la distribución física, tipos de clase y disponibilidad en tiempo real para cada vuelo de la aerolínea.
+            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+              Selecciona un vuelo para editar el mapa físico del avión en tiempo real. Configura asientos VIP o económicos y su disponibilidad de reserva.
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Selector de Vuelo */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-dark-surface/50 border border-dark-border p-5 rounded-2xl">
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block">
-            Seleccionar Vuelo
-          </label>
-          <p className="text-xs text-gray-500">
-            Elige un vuelo del catálogo para visualizar su configuración
-          </p>
-        </div>
-        <div className="w-full md:w-96">
-          <select
-            value={vueloSelId}
-            onChange={(e) => {
-              setVueloSelId(e.target.value);
-              setBusqueda('');
-              setAsientoSelCodigo('');
-            }}
-            className="w-full bg-dark border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary-light transition-all duration-200 cursor-pointer"
-          >
-            <option value="">-- Selecciona un vuelo --</option>
-            {vuelos.map((v) => (
-              <option key={v.id} value={v.id}>
-                {labelVuelo(v)}
-              </option>
-            ))}
-          </select>
+          {vueloSelId && (
+            <Button
+              variant="secondary"
+              size="small"
+              onClick={() => {
+                setVueloSelId('');
+                setAsientoSelCodigo('');
+                setCreandoNuevo(false);
+              }}
+              className="border-white/10 hover:bg-white/5 transition-all text-xs font-semibold px-4 py-2"
+            >
+              ← Cambiar de Vuelo
+            </Button>
+          )}
         </div>
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-primary-light text-sm">
+        <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-primary-light text-xs backdrop-blur-md">
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-dark-border bg-dark-surface p-6 h-28" />
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-3xl border border-white/5 bg-white/5 h-44" />
           ))}
         </div>
       ) : !vueloSelId ? (
-        /* Pantalla Vacía de Bienvenida */
-        <div className="rounded-3xl border border-dashed border-dark-border bg-dark-surface/10 p-16 text-center flex flex-col items-center justify-center space-y-4">
-          <div className="p-4 bg-dark-surface/50 border border-dark-border rounded-2xl text-gray-500">
-            <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+        /* ================= PASO 1: SELECCIONAR VUELO (GRILLA PREMIUM) ================= */
+        <div className="space-y-6">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-bold text-white tracking-wide">Vuelos Activos de la Aerolínea</h2>
+            <p className="text-xs text-gray-400">Selecciona un vuelo del catálogo para configurar sus asientos.</p>
           </div>
-          <h3 className="text-lg font-bold text-white">Ningún vuelo seleccionado</h3>
-          <p className="text-sm text-gray-400 max-w-sm">
-            Selecciona un vuelo arriba para poder visualizar sus asientos asignados, la distribución de la cabina y sus estadísticas.
-          </p>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {vuelos.map((v) => {
+              const origen = v.origen_detalle?.codigo_iata || 'ORG';
+              const destino = v.destino_detalle?.codigo_iata || 'DST';
+              const ciudadOrigen = v.origen_detalle?.ciudad || 'Origen';
+              const ciudadDestino = v.destino_detalle?.ciudad || 'Destino';
+              const fecha = new Date(v.fecha_salida).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+              const hora = new Date(v.fecha_salida).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+              
+              return (
+                <div
+                  key={v.id}
+                  onClick={() => setVueloSelId(String(v.id))}
+                  className="relative group cursor-pointer border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-3xl p-6 shadow-lg hover:shadow-primary/5 hover:border-primary/30 transition-all duration-300 transform hover:-translate-y-1 text-left flex flex-col justify-between min-h-[170px]"
+                >
+                  {/* Glowing light effect on hover */}
+                  <div className="absolute -inset-px bg-gradient-to-br from-primary/10 to-transparent rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                  <div className="space-y-4 relative z-10">
+                    {/* Encabezado del ticket */}
+                    <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                      <span className="text-[10px] font-bold text-primary-light uppercase tracking-wider">VUELO #{v.id}</span>
+                      <span className="text-[10px] text-gray-400 font-semibold">{v.aeronave_detalle?.modelo || 'Aeronave'}</span>
+                    </div>
+
+                    {/* Ruta de aeropuertos */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-left">
+                        <span className="text-xl font-black text-white block tracking-tight">{origen}</span>
+                        <span className="text-[10px] text-gray-500 block truncate max-w-[80px]">{ciudadOrigen}</span>
+                      </div>
+                      
+                      {/* Avión en medio */}
+                      <div className="flex-1 flex flex-col items-center justify-center">
+                        <div className="w-full border-t border-dashed border-white/20 relative">
+                          <svg className="h-4 w-4 text-primary absolute left-1/2 -translate-x-1/2 -top-2 transform rotate-90" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M10.18 9 M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5z"/>
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-xl font-black text-white block tracking-tight">{destino}</span>
+                        <span className="text-[10px] text-gray-500 block truncate max-w-[80px]">{ciudadDestino}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pie de tarjeta */}
+                  <div className="flex items-center justify-between border-t border-white/5 pt-3 mt-4 relative z-10">
+                    <span className="text-[11px] font-semibold text-gray-400">{fecha} · {hora}</span>
+                    <span className="text-xs font-bold text-primary-light group-hover:text-white transition-colors flex items-center gap-1">
+                      Gestionar Asientos →
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
-        /* Panel del Vuelo Activo */
+        /* ================= PASO 2: MAPA DE ASIENTOS E INTERFAZ DE GESTIÓN IN-LINE ================= */
         <div className="space-y-6">
-          {/* Tarjetas de Estadísticas */}
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            {/* Capacidad */}
-            <div className="rounded-2xl border border-dark-border bg-dark-surface/50 p-5 shadow-lg relative overflow-hidden">
-              <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Capacidad Cabina</span>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-black text-white">{stats.totalCargados}</span>
-                <span className="text-xs text-gray-500">/ {stats.capacidadAvion} máx</span>
+          {/* Ficha rápida del vuelo cargado */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-xl border border-primary/20">
+                <svg className="h-4 w-4 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
-              <p className="mt-1 text-[11px] text-gray-400">Asientos configurados</p>
-            </div>
-
-            {/* Disponibles */}
-            <div className="rounded-2xl border border-emerald-500/10 bg-emerald-500/5 p-5 shadow-lg">
-              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Disponibles</span>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-emerald-300">{stats.disponibles}</span>
-                <span className="text-xs text-emerald-500 font-bold">
-                  {stats.totalCargados ? Math.round((stats.disponibles / stats.totalCargados) * 100) : 0}%
+              <div>
+                <span className="text-[10px] text-gray-500 font-bold block">Vuelo Seleccionado</span>
+                <span className="text-white font-bold text-sm">
+                  {vueloSeleccionado?.origen_detalle?.codigo_iata} ➔ {vueloSeleccionado?.destino_detalle?.codigo_iata} ({vueloSeleccionado?.aeronave_detalle?.modelo})
                 </span>
               </div>
-              <p className="mt-1 text-[11px] text-emerald-500">Listos para reservar</p>
             </div>
-
-            {/* Ocupados */}
-            <div className="rounded-2xl border border-primary/10 bg-primary/5 p-5 shadow-lg">
-              <span className="text-[10px] uppercase font-bold text-primary-light tracking-wider">Ocupados</span>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black text-primary-light">{stats.ocupados}</span>
-                <span className="text-xs text-primary-light/75 font-bold">
-                  {stats.totalCargados ? Math.round((stats.ocupados / stats.totalCargados) * 100) : 0}%
-                </span>
+            
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <span className="text-[9px] uppercase font-bold text-gray-500 block">Asientos Configurados</span>
+                <span className="text-white font-bold">{stats.totalCargados} / {stats.capacidadAvion}</span>
               </div>
-              <p className="mt-1 text-[11px] text-primary-light/60">Asignados a reservas</p>
-            </div>
-
-            {/* VIP vs Económico */}
-            <div className="rounded-2xl border border-amber-500/10 bg-amber-500/5 p-5 shadow-lg">
-              <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">Distribución</span>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-black text-amber-300">{stats.vip} VIP</span>
-                <span className="text-xs text-gray-500">· {stats.economica} Econ</span>
+              <div className="text-right">
+                <span className="text-[9px] uppercase font-bold text-emerald-400 block">Libres</span>
+                <span className="text-emerald-300 font-bold">{stats.disponibles}</span>
               </div>
-              <p className="mt-1 text-[11px] text-amber-500/70">Clases del avión</p>
+              <div className="text-right">
+                <span className="text-[9px] uppercase font-bold text-primary-light block">Ocupados</span>
+                <span className="text-primary-light font-bold">{stats.ocupados}</span>
+              </div>
             </div>
           </div>
 
-          {/* Sección Interactiva: Mapa + Listado/Detalle */}
+          {/* Grilla principal: Mapa en izquierda y Formulario Inline en la derecha */}
           <div className="flex flex-col lg:flex-row gap-6 items-start">
-            {/* Columna Izquierda: Mapa de Cabina del Avión */}
-            <div className="w-full lg:w-[320px] shrink-0 bg-dark-surface/40 border border-dark-border rounded-3xl p-5 shadow-lg">
-              <div className="flex items-center justify-between mb-4 border-b border-dark-border pb-2.5">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            {/* Columna Izquierda: El Fuselaje del Avión */}
+            <div className="w-full lg:w-[330px] shrink-0 border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-3xl p-5 shadow-2xl relative text-center">
+              <h3 className="text-sm font-bold text-white mb-4 flex items-center justify-between border-b border-white/10 pb-2.5 text-left">
+                <span className="flex items-center gap-2">
                   <svg className="h-4.5 w-4.5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11V4a1 1 0 00-1-1H4a1 1 0 00-1 1v7c0 2.117.383 4.143 1.082 6l.048.093m0 0a14.002 14.002 0 002.466 3.792m0 0A14.003 14.003 0 0112 21a14.003 14.003 0 014.162-1.618m0 0a14.002 14.002 0 002.466-3.792m0 0l.048-.093A14.003 14.003 0 0022 11V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v7c0 3.517-1.009 6.799-2.753 9.571" />
                   </svg>
-                  Cabina de Pasajeros
-                </h3>
-                {asientoSelCodigo && (
-                  <button
-                    onClick={() => setAsientoSelCodigo('')}
-                    className="text-[10px] font-bold text-primary-light hover:text-white uppercase tracking-wider transition-colors"
-                  >
-                    Limpiar
-                  </button>
-                )}
-              </div>
+                  Mapa de la Cabina
+                </span>
+                <span className="text-[10px] text-gray-500 font-semibold">Toca un asiento</span>
+              </h3>
+              
               <SeatMapSelector
                 capacidad={stats.capacidadAvion}
                 asientos={asientosDelVuelo}
@@ -340,218 +352,166 @@ export function AsientosPage() {
               />
             </div>
 
-            {/* Columna Derecha: Detalle de Selección o Listado de Asientos */}
-            <div className="flex-1 w-full animate-fade-in">
-              {seatSelected ? (
-                /* Detalle de Asiento Seleccionado */
-                <div className="bg-dark-surface/30 border border-primary/20 rounded-3xl p-6 shadow-xl relative overflow-hidden animate-scale-in">
-                  <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl pointer-events-none" />
-                  
-                  <div className="flex items-start justify-between border-b border-dark-border pb-4 mb-5">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-primary-light tracking-wider block">Administración de Asiento</span>
-                      <h2 className="text-2xl font-black text-white mt-1">Ubicación: Asiento {seatSelected.codigo}</h2>
-                    </div>
-                    <Button variant="secondary" size="small" onClick={() => setAsientoSelCodigo('')}>
-                      Volver al listado
+            {/* Columna Derecha: Panel de Control Dinámico (Sin Modales Innecesarios) */}
+            <div className="flex-1 w-full border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-3xl p-6 shadow-2xl relative min-h-[380px] flex flex-col justify-between">
+              
+              {/* Contenido del Panel */}
+              <div className="space-y-6">
+                
+                {/* 1. Encabezado del Panel */}
+                <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-white">Panel de Administración de Asientos</h3>
+                    <p className="text-xs text-gray-400">Edita o agrega asientos directamente interactuando con la cabina.</p>
+                  </div>
+                  {isStaff && !creandoNuevo && (
+                    <Button size="small" onClick={activarCrear}>
+                      + Crear Nuevo Asiento
                     </Button>
-                  </div>
-
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-4">
-                      <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl">
-                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">Clase de Asiento</span>
-                        <span className="text-base font-bold text-white capitalize mt-1 block">{seatSelected.clase}</span>
-                      </div>
-
-                      <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl">
-                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">Fila y Columna</span>
-                        <span className="text-base font-bold text-white mt-1 block">Fila {seatSelected.fila} · Columna {seatSelected.columna}</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl">
-                        <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block">Disponibilidad</span>
-                        <div className="mt-1.5 flex items-center gap-2">
-                          <Badge estado={seatSelected.disponible ? 'disponible' : 'ocupado'} />
-                          <span className="text-xs text-gray-400">
-                            {seatSelected.disponible ? 'Disponible para asignación' : 'Ocupado por una reserva'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {isStaff && (
-                        <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl flex flex-col justify-center h-[90px]">
-                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block mb-2">Acciones Administrativas</span>
-                          <div className="flex gap-3">
-                            <Button size="small" variant="secondary" className="flex-1" onClick={() => abrirEditar(seatSelected)}>
-                              Editar Asiento
-                            </Button>
-                            <Button size="small" variant="danger" className="flex-1" onClick={() => eliminar(seatSelected)}>
-                              Eliminar
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Listado de Asientos de Apoyo */
-                <div className="bg-dark-surface/30 border border-dark-border rounded-3xl p-6 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-dark-border pb-4">
-                    <div>
-                      <h2 className="text-lg font-bold text-white">Listado de Asientos</h2>
-                      <p className="text-xs text-gray-400">Detalle de ubicaciones y disponibilidad física.</p>
-                    </div>
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <input
-                        type="text"
-                        placeholder="Buscar asiento..."
-                        value={busqueda}
-                        onChange={(e) => setBusqueda(e.target.value)}
-                        className="w-full sm:w-60 bg-dark border border-dark-border rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
-                      />
-                      {isStaff && (
-                        <Button size="small" className="whitespace-nowrap" onClick={abrirCrear}>
-                          Agregar Asiento
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-
-                  {asientosFiltrados.length === 0 ? (
-                    <div className="py-12 text-center text-xs text-gray-500">
-                      No se encontraron asientos con los criterios de búsqueda.
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className="border-b border-dark-border/60 text-gray-500 uppercase tracking-wider">
-                            <th className="px-4 py-3 font-bold">Código</th>
-                            <th className="px-4 py-3 font-bold">Fila</th>
-                            <th className="px-4 py-3 font-bold">Columna</th>
-                            <th className="px-4 py-3 font-bold">Clase</th>
-                            <th className="px-4 py-3 font-bold">Estado</th>
-                            {isStaff && <th className="px-4 py-3 text-right font-bold">Acciones</th>}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {asientosFiltrados.map((a) => (
-                            <tr
-                              key={a.id}
-                              onClick={() => setAsientoSelCodigo(a.codigo)}
-                              className="border-b border-dark-border/30 last:border-b-0 hover:bg-dark-surface/20 transition-all cursor-pointer"
-                            >
-                              <td className="px-4 py-3 font-mono font-bold text-white">{a.codigo}</td>
-                              <td className="px-4 py-3 text-stone-300">{a.fila}</td>
-                              <td className="px-4 py-3 text-stone-300">{a.columna}</td>
-                              <td className="px-4 py-3 capitalize">
-                                <span className={a.clase === ClaseTarifa.Primera || a.clase === ClaseTarifa.Business ? 'text-amber-300 font-semibold' : 'text-stone-400'}>
-                                  {a.clase}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <Badge estado={a.disponible ? 'disponible' : 'ocupado'} />
-                              </td>
-                              {isStaff && (
-                                <td className="px-4 py-3 text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    onClick={() => setAsientoSelCodigo(a.codigo)}
-                                    className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1"
-                                  >
-                                    Gestionar
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
                   )}
                 </div>
-              )}
+
+                {/* 2. Caso: Asiento Seleccionado o Nuevo Asiento */}
+                {seatSelected || creandoNuevo ? (
+                  <form onSubmit={handleGuardar} className="space-y-5 animate-scale-in">
+                    
+                    {/* Título de estado del formulario */}
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 rounded-full bg-primary animate-ping" />
+                      <span className="text-sm font-bold text-white">
+                        {creandoNuevo ? 'Creando Asiento Nuevo' : `Gestionando Asiento ${seatSelected?.codigo}`}
+                      </span>
+                    </div>
+
+                    {formError && (
+                      <div className="p-3 text-xs rounded-xl bg-primary/10 border border-primary/20 text-primary-light">
+                        {formError}
+                      </div>
+                    )}
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormInput
+                        label="Código Identificador (Ej: 12A)"
+                        required
+                        value={valores.codigo}
+                        onChange={(e) => setValores((prev) => ({ ...prev, codigo: e.target.value }))}
+                        placeholder="Ej: 12A"
+                        maxLength={4}
+                      />
+                      <FormSelect
+                        label="Clase del Asiento"
+                        required
+                        value={valores.clase}
+                        onChange={(e) => setValores((prev) => ({ ...prev, clase: e.target.value as ClaseTarifa }))}
+                        options={Object.values(ClaseTarifa).map((c) => ({ value: c, label: c }))}
+                      />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FormInput
+                        label="Fila (Número)"
+                        type="number"
+                        required
+                        value={valores.fila}
+                        onChange={(e) => setValores((p) => ({ ...p, fila: e.target.value }))}
+                        placeholder="Ej: 12"
+                      />
+                      <FormInput
+                        label="Columna (Letra)"
+                        required
+                        value={valores.columna}
+                        onChange={(e) => setValores((p) => ({ ...p, columna: e.target.value }))}
+                        placeholder="Ej: A"
+                        maxLength={2}
+                      />
+                    </div>
+
+                    {/* Checkbox Disponible */}
+                    <div className="flex items-center gap-3 pt-2">
+                      <input
+                        id="form-disponible-check"
+                        type="checkbox"
+                        checked={valores.disponible}
+                        onChange={(e) => setValores((prev) => ({ ...prev, disponible: e.target.checked }))}
+                        className="h-5 w-5 rounded border-white/20 bg-dark text-primary focus:ring-primary focus:ring-opacity-25 focus:ring-offset-0 cursor-pointer"
+                      />
+                      <label htmlFor="form-disponible-check" className="text-xs font-semibold text-gray-300 cursor-pointer select-none">
+                        ¿Habilitado para reserva en línea? <span className="text-[10px] text-gray-500 font-normal">(Desmarca para marcarlo como Ocupado/Bloqueado)</span>
+                      </label>
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="flex items-center justify-between border-t border-white/10 pt-4 mt-6">
+                      <div>
+                        {seatSelected && isStaff && (
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="small"
+                            onClick={() => handleEliminar(seatSelected)}
+                          >
+                            Eliminar Asiento
+                          </Button>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="small"
+                          onClick={() => {
+                            setAsientoSelCodigo('');
+                            setCreandoNuevo(false);
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                        <Button type="submit" size="small" disabled={guardando}>
+                          {guardando ? 'Guardando...' : 'Guardar Cambios'}
+                        </Button>
+                      </div>
+                    </div>
+
+                  </form>
+                ) : (
+                  /* 3. Caso: Ninguno Seleccionado (Muestra Instrucciones Claras y Estadísticas de Apoyo) */
+                  <div className="py-8 text-center space-y-6 animate-fade-in flex flex-col items-center">
+                    <div className="p-4 bg-white/5 border border-white/10 rounded-full text-gray-400">
+                      <svg className="h-10 w-10 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    
+                    <div className="max-w-sm space-y-2">
+                      <h4 className="text-sm font-bold text-white">¿Cómo administrar este vuelo?</h4>
+                      <p className="text-xs text-gray-400 leading-relaxed">
+                        1. Haz clic en **cualquier asiento** en el mapa del avión a tu izquierda.
+                        <br />
+                        2. El panel se actualizará para editar su clase (VIP / Económico) o marcarlo como disponible.
+                        <br />
+                        3. Haz clic en **"Crear Asiento"** si deseas añadir una nueva ubicación a la fila.
+                      </p>
+                    </div>
+
+                    <div className="w-full max-w-md grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-2xl text-left">
+                        <span className="text-[9px] uppercase font-bold text-gray-500 tracking-wider block">Primera / VIP</span>
+                        <span className="text-base font-black text-amber-300 block mt-1">{stats.vip} asientos</span>
+                      </div>
+                      <div className="p-3 bg-white/5 border border-white/10 rounded-2xl text-left">
+                        <span className="text-[9px] uppercase font-bold text-gray-500 tracking-wider block">Clase Económica</span>
+                        <span className="text-base font-black text-emerald-300 block mt-1">{stats.economica} asientos</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
             </div>
           </div>
         </div>
       )}
-
-      {/* Modal de CRUD para Administradores */}
-      <Modal
-        open={modalAbierto}
-        title={editando ? `Editar Asiento: ${editando.codigo}` : 'Agregar Nuevo Asiento'}
-        onClose={() => setModalAbierto(false)}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {formError && (
-            <div className="p-3 text-xs rounded-xl bg-primary/10 border border-primary/20 text-primary-light">
-              {formError}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormInput
-              label="Código del Asiento"
-              required
-              value={valores.codigo}
-              onChange={(e) => setValores((prev) => ({ ...prev, codigo: e.target.value }))}
-              placeholder="Ej: 12A"
-              maxLength={4}
-            />
-            <FormSelect
-              label="Clase"
-              required
-              value={valores.clase}
-              onChange={(e) => setValores((prev) => ({ ...prev, clase: e.target.value as ClaseTarifa }))}
-              options={Object.values(ClaseTarifa).map((c) => ({ value: c, label: c }))}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormInput
-              label="Fila (Número)"
-              type="number"
-              required
-              value={valores.fila}
-              onChange={(prev) => setValores((p) => ({ ...p, fila: prev.target.value }))}
-              placeholder="Ej: 12"
-            />
-            <FormInput
-              label="Columna (Letra)"
-              required
-              value={valores.columna}
-              onChange={(prev) => setValores((p) => ({ ...p, columna: prev.target.value }))}
-              placeholder="Ej: A"
-              maxLength={2}
-            />
-          </div>
-
-          <div className="flex items-center gap-2 pt-2">
-            <input
-              id="disponible-check"
-              type="checkbox"
-              checked={valores.disponible}
-              onChange={(e) => setValores((prev) => ({ ...prev, disponible: e.target.checked }))}
-              className="h-4.5 w-4.5 rounded border-dark-border bg-dark text-primary focus:ring-primary focus:ring-opacity-25"
-            />
-            <label htmlFor="disponible-check" className="text-xs font-semibold text-gray-300 select-none cursor-pointer">
-              Asiento disponible para reservas
-            </label>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-dark-border">
-            <Button variant="secondary" type="button" onClick={() => setModalAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={guardando}>
-              {guardando ? 'Guardando...' : 'Guardar Asiento'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }
