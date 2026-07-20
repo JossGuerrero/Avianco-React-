@@ -87,6 +87,13 @@ export function CheckInsPage() {
     });
   }, [checkinsVisibles, busqueda, reservasPorId, pasajerosPorId]);
 
+  // Reservas del cliente que no tienen check-in y no están canceladas
+  const reservasSinCheckin = useMemo(() => {
+    const reservasConCheckinIds = new Set(checkins.map((c) => c.reserva));
+    const clienteReservas = reservas.filter((r) => misPasajerosIds.has(r.pasajero) && r.estado !== EstadoReserva.Cancelada);
+    return clienteReservas.filter((r) => !reservasConCheckinIds.has(r.id));
+  }, [reservas, checkins, misPasajerosIds]);
+
   // Estadísticas para el panel superior
   const stats = useMemo(() => {
     const total = checkinsVisibles.length;
@@ -260,10 +267,180 @@ export function CheckInsPage() {
             </div>
           ) : (
             /* ================= VISTA CLIENTE: TARJETAS DE EMBARQUE ================= */
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white tracking-wide">Mis Pases de Abordar</h2>
-              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
-                Cargando tus pases de abordar...
+            <div className="space-y-8">
+              
+              {/* Sección 1: Reservas Pendientes por Check-in */}
+              {reservasSinCheckin.length > 0 && (
+                <div className="space-y-4">
+                  <h2 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                    <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                    Reservas Pendientes de Check-in
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {reservasSinCheckin.map((r) => {
+                      const vue = vuelosPorId.get(r.vuelo);
+                      const pas = pasajerosPorId.get(r.pasajero);
+                      const nombrePas = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${r.pasajero}`;
+                      const origen = vue?.origen_detalle?.codigo_iata || 'ORG';
+                      const destino = vue?.destino_detalle?.codigo_iata || 'DST';
+                      const fecha = vue ? new Date(vue.fecha_salida).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' }) : '';
+
+                      return (
+                        <div key={r.id} className="border border-white/10 bg-gradient-to-br from-yellow-500/5 to-transparent rounded-2xl p-5 flex items-center justify-between gap-4 shadow-md backdrop-blur-md">
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] uppercase font-mono font-bold text-yellow-400">Reserva #{r.id}</span>
+                            <div className="text-white font-bold text-sm">
+                              {origen} ➔ {destino} · <span className="text-gray-400 font-normal">{fecha}</span>
+                            </div>
+                            <span className="text-[11px] text-stone-300 block">Pasajero: {nombrePas} · Asiento: <span className="font-bold text-amber-300">{r.asiento}</span></span>
+                          </div>
+                          <Button size="small" variant="secondary" className="border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10">
+                            Hacer Check-in
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Sección 2: Mis Pases de Abordar Generados */}
+              <div className="space-y-4">
+                <h2 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  Tarjetas de Embarque Activas
+                </h2>
+                
+                {checkinsFiltrados.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm">
+                    No registras tarjetas de embarque activas. Completa el check-in de tus reservas arriba.
+                  </div>
+                ) : (
+                  <div className="grid gap-6">
+                    {checkinsFiltrados.map((c) => {
+                      const res = reservasPorId.get(c.reserva);
+                      const pas = res ? pasajerosPorId.get(res.pasajero) : null;
+                      const vue = res ? vuelosPorId.get(res.vuelo) : null;
+                      const pue = c.puerta != null ? puertasPorId.get(c.puerta) : null;
+
+                      const nombrePasajero = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${res?.pasajero}`;
+                      const origen = vue?.origen_detalle?.codigo_iata || 'ORG';
+                      const destino = vue?.destino_detalle?.codigo_iata || 'DST';
+                      const ciudadOrigen = vue?.origen_detalle?.ciudad || 'Origen';
+                      const ciudadDestino = vue?.destino_detalle?.ciudad || 'Destino';
+                      const fecha = vue ? new Date(vue.fecha_salida).toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' }) : '';
+                      const hora = vue ? new Date(vue.fecha_salida).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '';
+
+                      return (
+                        <div key={c.id} className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-r from-white/5 to-white/0 backdrop-blur-md shadow-2xl flex flex-col md:flex-row max-w-3xl w-full animate-scale-in">
+                          {/* Boarding ticket shape circular notches */}
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 w-6 h-6 rounded-full bg-[#1a1a1a] border-r border-white/10 hidden md:block" />
+                          <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 w-6 h-6 rounded-full bg-[#1a1a1a] border-l border-white/10 hidden md:block" />
+
+                          {/* Left / Main Section (Pase principal) */}
+                          <div className="flex-1 p-6 space-y-6">
+                            {/* Header */}
+                            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-black text-white tracking-tight">AVIANCO</span>
+                                <span className="text-[9px] font-bold text-primary-light uppercase tracking-widest border border-primary/30 px-2 py-0.5 rounded">Boarding Pass</span>
+                              </div>
+                              <span className="text-[10px] font-mono text-gray-400">TARJETA #{c.tarjeta_embarque}</span>
+                            </div>
+
+                            {/* Airports */}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="text-3xl font-black text-white block tracking-tighter">{origen}</span>
+                                <span className="text-[10px] text-gray-400 block truncate max-w-[120px]">{ciudadOrigen}</span>
+                              </div>
+                              
+                              <div className="flex-1 flex flex-col items-center justify-center px-4">
+                                <span className="text-[10px] text-gray-500 font-bold mb-1">{fecha}</span>
+                                <div className="w-full border-t border-dashed border-white/20 relative">
+                                  <svg className="h-4.5 w-4.5 text-primary absolute left-1/2 -translate-x-1/2 -top-2.5 transform rotate-90" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M10.18 9 M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5l8 2.5z"/>
+                                  </svg>
+                                </div>
+                              </div>
+
+                              <div className="text-right">
+                                <span className="text-3xl font-black text-white block tracking-tighter">{destino}</span>
+                                <span className="text-[10px] text-gray-400 block truncate max-w-[120px]">{ciudadDestino}</span>
+                              </div>
+                            </div>
+
+                            {/* Details Grid */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-white/5 text-left">
+                              <div>
+                                <span className="text-[9px] uppercase font-bold text-gray-500 block">Pasajero</span>
+                                <span className="font-bold text-white text-xs block truncate max-w-[140px]">{nombrePasajero}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] uppercase font-bold text-gray-500 block">Asiento</span>
+                                <span className="font-black text-amber-300 text-sm block">{res?.asiento || '—'}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] uppercase font-bold text-gray-500 block">Salida</span>
+                                <span className="font-bold text-white text-xs block">{hora}</span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] uppercase font-bold text-gray-500 block">Puerta</span>
+                                <span className="font-black text-white text-sm block">
+                                  {pue ? `Puerta ${pue.codigo}` : 'Por asignar'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Simulated barcode */}
+                            <div className="flex gap-0.5 items-end justify-center h-8 opacity-75 mt-2 bg-white/5 px-4 py-1 rounded-xl">
+                              {Array.from({ length: 40 }).map((_, idx) => {
+                                const widths = [1, 2, 3, 1, 1, 2, 4, 1, 2, 1];
+                                const width = widths[idx % widths.length];
+                                const isBlack = idx % 2 === 0;
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="h-full bg-white"
+                                    style={{ width: `${width}px`, opacity: isBlack ? 0.9 : 0 }}
+                                  />
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Right Section / Ticket Stub (Colilla de control) */}
+                          <div className="w-full md:w-56 border-t md:border-t-0 md:border-l border-dashed border-white/10 p-6 bg-white/5 backdrop-blur-md flex flex-col justify-between items-center text-center space-y-4">
+                            <div className="space-y-1">
+                              <span className="text-[9px] uppercase font-bold text-gray-500 block">Clase</span>
+                              <span className="rounded-full bg-primary/10 border border-primary/20 px-3 py-0.5 text-[10px] font-black text-primary-light uppercase tracking-wider block">
+                                {res?.asiento.includes('1') || res?.asiento.includes('2') || res?.asiento.includes('3') ? 'VIP' : 'Económica'}
+                              </span>
+                            </div>
+
+                            {/* QR code box */}
+                            <div className="flex flex-col items-center justify-center p-3 bg-white rounded-2xl w-24 h-24 shadow-lg border border-white/10">
+                              <div className="grid grid-cols-5 gap-1.5 w-full h-full bg-white p-1">
+                                {Array.from({ length: 25 }).map((_, idx) => {
+                                  const isBlack = (idx * 7 + 3) % 2 === 0 || idx === 0 || idx === 4 || idx === 20 || idx === 24;
+                                  return (
+                                    <div key={idx} className={`w-full h-full ${isBlack ? 'bg-black' : 'bg-white'}`} />
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1 w-full">
+                              <span className="text-[10px] text-gray-400 block truncate max-w-[150px] mx-auto">{nombrePasajero}</span>
+                              <span className="text-[11px] font-bold text-white block">Reserva #{c.reserva}</span>
+                            </div>
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
