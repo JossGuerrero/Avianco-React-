@@ -14,4 +14,6 @@ export interface PasajeroInput {
   nacionalidad: string;
   fecha_nacimiento: string;
   telefono: string;
+  nombre_completo?: string;
 }
+

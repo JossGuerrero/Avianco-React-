@@ -15,6 +15,7 @@ interface PasajeroForm {
   nacionalidad: string;
   fecha_nacimiento: string;
   telefono: string;
+  nombre_completo: string;
 }
 
 export function PasajerosPage() {
@@ -34,6 +35,7 @@ export function PasajerosPage() {
     nacionalidad: '',
     fecha_nacimiento: '',
     telefono: '',
+    nombre_completo: '',
   });
   const [guardando, setGuardando] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export function PasajerosPage() {
       nacionalidad: '',
       fecha_nacimiento: '',
       telefono: '',
+      nombre_completo: '',
     });
     setFormError(null);
     setModalAbierto(true);
@@ -86,6 +89,7 @@ export function PasajerosPage() {
       nacionalidad: pasajero.nacionalidad,
       fecha_nacimiento: pasajero.fecha_nacimiento,
       telefono: pasajero.telefono,
+      nombre_completo: pasajero.nombre_completo || '',
     });
     setFormError(null);
     setModalAbierto(true);
@@ -94,8 +98,8 @@ export function PasajerosPage() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const passportClean = form.numero_pasaporte.trim();
-    if (!passportClean || !form.nacionalidad || !form.fecha_nacimiento) {
-      setFormError('Pasaporte, nacionalidad y fecha de nacimiento son obligatorios');
+    if (!passportClean || !form.nacionalidad || !form.fecha_nacimiento || !form.nombre_completo.trim()) {
+      setFormError('Nombre, pasaporte, nacionalidad y fecha de nacimiento son obligatorios');
       return;
     }
     // Validar formato del pasaporte: alfanumérico de 6 a 15 caracteres
@@ -126,6 +130,7 @@ export function PasajerosPage() {
         nacionalidad: form.nacionalidad,
         fecha_nacimiento: form.fecha_nacimiento,
         telefono: form.telefono.trim(),
+        nombre_completo: form.nombre_completo.trim(),
       };
       if (editando) {
         await useCaseFactory.pasajeros.update(editando.id, input);
@@ -352,6 +357,14 @@ export function PasajerosPage() {
               />
             </div>
           )}
+
+          <FormInput
+            label="Nombre completo del pasajero"
+            required
+            value={form.nombre_completo}
+            onChange={(e) => setForm((f) => ({ ...f, nombre_completo: e.target.value }))}
+            placeholder="Ej: Juan Pérez"
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
