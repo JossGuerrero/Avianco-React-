@@ -119,10 +119,10 @@ export function FacturasPage() {
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Cabecera Principal */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)] flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
         
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
+        <div className="relative z-10 space-y-4 max-w-xl text-left">
           <div>
             <div className="flex items-center gap-2">
               <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -133,12 +133,22 @@ export function FacturasPage() {
             <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
               Terminal de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Facturas</span>
             </h1>
-            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+            <p className="mt-2 text-xs text-gray-400 leading-relaxed">
               {isStaff 
                 ? 'Controla las facturas fiscales emitidas, impuestos recaudados para aduanas y estado de pagos por reserva.'
                 : 'Consulta tus comprobantes fiscales y facturas detalladas de vuelos y servicios adquiridos.'}
             </p>
           </div>
+        </div>
+
+        {/* Banner Generado por IA */}
+        <div className="relative w-full md:w-64 h-24 rounded-2xl overflow-hidden border border-white/10 shadow-lg hidden md:block">
+          <img 
+            src="/billing_banner_1784569609125.png" 
+            alt="Billing Banner" 
+            className="w-full h-full object-cover opacity-80"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-dark/80 to-transparent" />
         </div>
       </div>
 
@@ -267,11 +277,88 @@ export function FacturasPage() {
             </div>
           ) : (
             /* ================= VISTA CLIENTE: HISTORIAL DE FACTURAS ================= */
-            <div className="space-y-4">
-              <h2 className="text-lg font-bold text-white tracking-wide">Mis Facturas</h2>
-              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
-                Cargando tus facturas...
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-white tracking-wide">Mis Comprobantes de Compra</h2>
+                <span className="text-xs text-gray-400">{facturasFiltradas.length} recibos fiscales</span>
               </div>
+
+              {facturasFiltradas.length === 0 ? (
+                <div className="py-16 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-sm">
+                  No registras facturas de vuelos o compras asociadas a tu cuenta.
+                </div>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {facturasFiltradas.map((f) => {
+                    const res = reservasPorId.get(f.reserva);
+                    const pas = res ? pasajerosPorId.get(res.pasajero) : null;
+                    const nombrePas = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${res?.pasajero}`;
+
+                    return (
+                      <div key={f.id} className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0 backdrop-blur-md shadow-xl p-6 flex flex-col justify-between h-[340px] w-full animate-scale-in hover:border-white/20 transition-all">
+                        {/* Cut-out / Tear-off physical ticket circle guides */}
+                        <div className="absolute -left-3 top-[120px] w-6 h-6 rounded-full bg-[#121212] border-r border-white/10" />
+                        <div className="absolute -right-3 top-[120px] w-6 h-6 rounded-full bg-[#121212] border-l border-white/10" />
+
+                        {/* Top Section */}
+                        <div className="flex items-center justify-between pb-3 border-b border-white/5">
+                          <div>
+                            <span className="text-[9px] text-gray-500 block uppercase tracking-wider font-mono">Factura Fiscal</span>
+                            <span className="font-bold text-white text-xs">#FAC-2026-00{f.id}</span>
+                          </div>
+                          <Badge estado={f.estado} />
+                        </div>
+
+                        {/* Middle Info / Passenger */}
+                        <div className="py-4 space-y-1 text-left">
+                          <span className="text-[9px] text-gray-500 block uppercase tracking-wider font-mono">Detalles del Titular</span>
+                          <div className="text-sm font-bold text-white truncate">{nombrePas}</div>
+                          <div className="text-[11px] text-stone-300">Asiento de Reserva: <span className="font-bold text-white">#{f.reserva}</span></div>
+                          <div className="text-[10px] text-stone-400">Emisor: <span className="font-medium text-stone-300">AVIANCO AIRLINES S.A.</span></div>
+                        </div>
+
+                        {/* Dotted Tear strip */}
+                        <div className="border-t border-dashed border-white/15 my-2" />
+
+                        {/* Bottom Invoice breakdown */}
+                        <div className="space-y-1 text-left text-[11px]">
+                          <div className="flex justify-between text-stone-400">
+                            <span>Subtotal (Neto):</span>
+                            <span>{formatPrecio(Number(f.total) - Number(f.impuestos))}</span>
+                          </div>
+                          <div className="flex justify-between text-stone-400">
+                            <span>Tasas / Impuestos:</span>
+                            <span>{formatPrecio(f.impuestos)}</span>
+                          </div>
+                          <div className="flex justify-between text-white font-black text-sm pt-1.5 border-t border-white/5">
+                            <span>Total Facturado:</span>
+                            <span className="text-primary-light">{formatPrecio(f.total)}</span>
+                          </div>
+                        </div>
+
+                        {/* Barcode & Button */}
+                        <div className="mt-4 flex items-center justify-between gap-4">
+                          <div className="flex gap-0.5 items-end justify-center h-8 opacity-45 bg-white/5 px-2.5 py-1 rounded-lg w-1/2">
+                            {Array.from({ length: 18 }).map((_, idx) => {
+                              const widths = [1, 2, 1, 3, 2];
+                              return (
+                                <div
+                                  key={idx}
+                                  className="h-full bg-white"
+                                  style={{ width: `${widths[idx % 5]}px`, opacity: idx % 2 === 0 ? 0.9 : 0 }}
+                                />
+                              );
+                            })}
+                          </div>
+                          <Button size="small" onClick={() => abrirDetalle(f)}>
+                            Ver Detalle
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
