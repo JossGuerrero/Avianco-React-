@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { getErrorMessage } from '../../utils/formatters';
+import { labelReserva } from '../../utils/labels';
+import { Modal } from '../../components/Modal';
+import { FormInput } from '../../components/FormInput';
+import { FormSelect } from '../../components/FormSelect';
+import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import type { CheckIn } from '../../../domain/entities/CheckIn';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Puerta } from '../../../domain/entities/Puerta';
@@ -23,6 +28,18 @@ export function CheckInsPage() {
 
   // Filtros
   const [busqueda, setBusqueda] = useState<string>('');
+
+  // Estados para CRUD de Staff
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [editando, setEditando] = useState<CheckIn | null>(null);
+  const [valores, setValores] = useState({
+    reserva: '',
+    puerta: '',
+    tarjeta_embarque: '',
+    estado: 'checkin',
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -94,20 +111,135 @@ export function CheckInsPage() {
     return clienteReservas.filter((r) => !reservasConCheckinIds.has(r.id));
   }, [reservas, checkins, misPasajerosIds]);
 
-  // Estadísticas para el panel superior
+  // Reservas generales que no tienen check-in (para el select de creación de staff)
+  const reservasDisponiblesStaff = useMemo(() => {
+    const reservasConCheckinIds = new Set(checkins.map((c) => c.reserva));
+    return reservas.filter((r) => r.estado !== EstadoReserva.Cancelada && (!reservasConCheckinIds.has(r.id) || (editando && r.id === editando.reserva)));
+  }, [reservas, checkins, editando]);
+
+  // Estadísticas para el panel superior (mapeadas a los estados reales: 'checkin' y 'embarcado')
   const stats = useMemo(() => {
     const total = checkinsVisibles.length;
-    const confirmados = checkinsVisibles.filter((c) => c.estado.toLowerCase() === 'confirmado' || c.estado.toLowerCase() === 'activo').length;
-    const abordando = checkinsVisibles.filter((c) => c.estado.toLowerCase() === 'abordando' || c.estado.toLowerCase() === 'embarque').length;
-    const pendientes = checkinsVisibles.filter((c) => c.estado.toLowerCase() === 'pendiente').length;
+    const confirmados = checkinsVisibles.filter((c) => c.estado.toLowerCase() === 'checkin').length;
+    const embarcados = checkinsVisibles.filter((c) => c.estado.toLowerCase() === 'embarcado').length;
+    const pendientes = isStaff 
+      ? reservas.filter((r) => r.estado !== EstadoReserva.Cancelada).length - checkins.length
+      : reservasSinCheckin.length;
     
     return {
       total,
       confirmados,
-      abordando,
-      pendientes,
+      embarcados,
+      pendientes: Math.max(0, pendientes),
     };
-  }, [checkinsVisibles]);
+  }, [checkinsVisibles, checkins, reservas, isStaff, reservasSinCheckin]);
+
+  // Lógica CRUD de Staff
+  function abrirCrear() {
+    // Buscar la primera puerta activa disponible por defecto
+    const primeraPuerta = puertas.find((p) => p.activa)?.id || '';
+    setEditando(null);
+    setValores({
+      reserva: '',
+      puerta: String(primeraPuerta),
+      tarjeta_embarque: `AV-${Math.floor(10000 + Math.random() * 90000)}`,
+      estado: 'checkin',
+    });
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  function abrirEditar(c: CheckIn) {
+    setEditando(c);
+    setValores({
+      reserva: String(c.reserva),
+      puerta: c.puerta ? String(c.puerta) : '',
+      tarjeta_embarque: c.tarjeta_embarque,
+      estado: c.estado,
+    });
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  async function handleEliminar(c: CheckIn) {
+    if (!window.confirm(`¿Eliminar el check-in #${c.id}?`)) return;
+    try {
+      await useCaseFactory.checkins.remove(c.id);
+      await cargar();
+    } catch (e) {
+      setError(getErrorMessage(e, 'No se pudo eliminar el check-in'));
+    }
+  }
+
+  // Hacer check-in rápido desde vista cliente
+  async function handleCheckinRapido(reservaId: number) {
+    setLoading(true);
+    setError(null);
+    try {
+      const codigoPase = `AV-${reservaId}-${Math.floor(100 + Math.random() * 900)}`;
+      
+      // Dado que el backend exige una puerta no nula, buscamos la primera puerta activa
+      const puertaId = puertas.find((p) => p.activa)?.id || puertas[0]?.id;
+      if (!puertaId) {
+        throw new Error('No hay puertas de embarque disponibles para asignar. Comunícate con Staff.');
+      }
+
+      await useCaseFactory.checkins.create({
+        reserva: reservaId,
+        puerta: puertaId,
+        tarjeta_embarque: codigoPase,
+        estado: 'checkin', // El valor aceptado por el backend para el estado de check-in inicial
+      });
+      await cargar();
+    } catch (e) {
+      setError(getErrorMessage(e, 'No se pudo realizar el check-in de la reserva'));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const reservaId = Number(valores.reserva);
+    const puertaId = Number(valores.puerta);
+    
+    if (!reservaId || !valores.tarjeta_embarque.trim() || !valores.estado.trim() || !puertaId) {
+      setFormError('La reserva, código de pase, puerta y estado son obligatorios');
+      return;
+    }
+
+    // Validar duplicado
+    const duplicado = checkins.find(
+      (c) => c.reserva === reservaId && c.id !== editando?.id
+    );
+    if (duplicado) {
+      setFormError(`La reserva #${reservaId} ya tiene el check-in #${duplicado.id}`);
+      return;
+    }
+
+    setGuardando(true);
+    setFormError(null);
+    try {
+      const input = {
+        reserva: reservaId,
+        puerta: puertaId,
+        tarjeta_embarque: valores.tarjeta_embarque.trim(),
+        estado: valores.estado.trim(),
+      };
+
+      if (editando) {
+        await useCaseFactory.checkins.update(editando.id, input);
+      } else {
+        await useCaseFactory.checkins.create(input);
+      }
+      setModalAbierto(false);
+      await cargar();
+    } catch (e) {
+      setFormError(getErrorMessage(e, 'No se pudo guardar el check-in'));
+    } finally {
+      setGuardando(false);
+    }
+  }
 
   return (
     <div className="relative space-y-8 animate-fade-in pb-12 text-left">
@@ -162,21 +294,21 @@ export function CheckInsPage() {
             </div>
 
             <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/0 backdrop-blur-md p-5 shadow-lg">
-              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Confirmados</span>
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Con Check-in</span>
               <div className="mt-2 text-2xl font-black text-emerald-300">{stats.confirmados}</div>
               <p className="mt-1 text-[11px] text-emerald-400">Listos para volar</p>
             </div>
 
             <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-500/0 backdrop-blur-md p-5 shadow-lg">
-              <span className="text-[10px] uppercase font-bold text-blue-400 tracking-wider">Abordando</span>
-              <div className="mt-2 text-2xl font-black text-blue-300">{stats.abordando}</div>
-              <p className="mt-1 text-[11px] text-blue-400">En puerta de salida</p>
+              <span className="text-[10px] uppercase font-bold text-blue-400 tracking-wider">Embarcados</span>
+              <div className="mt-2 text-2xl font-black text-blue-300">{stats.embarcados}</div>
+              <p className="mt-1 text-[11px] text-blue-400">En el avión</p>
             </div>
 
             <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-yellow-500/0 backdrop-blur-md p-5 shadow-lg">
               <span className="text-[10px] uppercase font-bold text-yellow-400 tracking-wider">Pendientes</span>
               <div className="mt-2 text-2xl font-black text-yellow-300">{stats.pendientes}</div>
-              <p className="mt-1 text-[11px] text-yellow-400">Por confirmar datos</p>
+              <p className="mt-1 text-[11px] text-yellow-400">Por realizar check-in</p>
             </div>
           </div>
 
@@ -197,7 +329,7 @@ export function CheckInsPage() {
                     onChange={(e) => setBusqueda(e.target.value)}
                     className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
                   />
-                  <Button size="small">
+                  <Button size="small" onClick={abrirCrear}>
                     + Registrar Check-in
                   </Button>
                 </div>
@@ -250,10 +382,16 @@ export function CheckInsPage() {
                               <Badge estado={c.estado} />
                             </td>
                             <td className="px-4 py-3 text-right space-x-2">
-                              <button className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1">
-                                Asignar Puerta
+                              <button
+                                onClick={() => abrirEditar(c)}
+                                className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1"
+                              >
+                                Editar
                               </button>
-                              <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                              <button
+                                onClick={() => handleEliminar(c)}
+                                className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1"
+                              >
                                 Eliminar
                               </button>
                             </td>
@@ -294,7 +432,7 @@ export function CheckInsPage() {
                             </div>
                             <span className="text-[11px] text-stone-300 block">Pasajero: {nombrePas} · Asiento: <span className="font-bold text-amber-300">{r.asiento}</span></span>
                           </div>
-                          <Button size="small" variant="secondary" className="border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10">
+                          <Button size="small" variant="secondary" className="border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/10" onClick={() => handleCheckinRapido(r.id)}>
                             Hacer Check-in
                           </Button>
                         </div>
@@ -446,6 +584,78 @@ export function CheckInsPage() {
           )}
         </div>
       )}
+
+      {/* Modal de Asignación / CRUD de Check-in */}
+      <Modal
+        open={modalAbierto}
+        title={editando ? `Editar Check-in: #${editando.id}` : 'Registrar Check-in'}
+        onClose={() => setModalAbierto(false)}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <div className="p-3 text-xs rounded-xl bg-primary/10 border border-primary/25 text-primary-light">
+              {formError}
+            </div>
+          )}
+
+          <FormSelect
+            label="Reserva Asociada"
+            required
+            disabled={!!editando}
+            value={valores.reserva}
+            onChange={(e) => setValores((prev) => ({ ...prev, reserva: e.target.value }))}
+            placeholder="Selecciona una reserva activa"
+            options={reservasDisponiblesStaff.map((r) => {
+              const pas = pasajerosPorId.get(r.pasajero);
+              const nombrePas = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${r.pasajero}`;
+              return {
+                value: String(r.id),
+                label: `Reserva #${r.id} · ${nombrePas} (Asiento: ${r.asiento})`,
+              };
+            })}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormInput
+              label="Tarjeta de Embarque (Código)"
+              required
+              value={valores.tarjeta_embarque}
+              onChange={(e) => setValores((prev) => ({ ...prev, tarjeta_embarque: e.target.value }))}
+              placeholder="Ej: TKT-12345"
+            />
+            <FormSelect
+              label="Puerta de Embarque"
+              required
+              value={valores.puerta}
+              onChange={(e) => setValores((prev) => ({ ...prev, puerta: e.target.value }))}
+              placeholder="Selecciona una puerta"
+              options={puertas
+                .filter((p) => p.activa)
+                .map((p) => ({ value: String(p.id), label: `Puerta ${p.codigo}` }))}
+            />
+          </div>
+
+          <FormSelect
+            label="Estado del Pasajero"
+            required
+            value={valores.estado}
+            onChange={(e) => setValores((prev) => ({ ...prev, estado: e.target.value }))}
+            options={[
+              { value: 'checkin', label: 'Check-in (Realizado)' },
+              { value: 'embarcado', label: 'Embarcado (En el avión)' },
+            ]}
+          />
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+            <Button variant="secondary" type="button" onClick={() => setModalAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={guardando}>
+              {guardando ? 'Guardando...' : 'Guardar Registro'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
