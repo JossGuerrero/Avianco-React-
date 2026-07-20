@@ -571,7 +571,7 @@ export function ReservasPage() {
                           variant="secondary"
                           isLoading={haciendoCheckin === reserva.id}
                           onClick={() => hacerCheckin(reserva)}
-                          className="bg-primary hover:bg-primary-dark text-white border-none text-xs font-bold px-4 py-2"
+                          className="bg-primary hover:bg-primary-dark text-white border-none text-xs font-bold px-4.5 py-2.5 rounded-xl shadow-lg shadow-primary/20 hover:shadow-primary/35 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300"
                         >
                           Hacer check-in
                         </Button>
@@ -590,7 +590,7 @@ export function ReservasPage() {
         title={editando ? `Editar reserva #${editando.id}` : 'Nueva reserva'}
         onClose={() => setModalAbierto(false)}
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <FormSelect
             label="Vuelo"
             value={form.vuelo}
@@ -598,23 +598,27 @@ export function ReservasPage() {
             placeholder="Selecciona un vuelo"
             options={vuelos.map((v) => ({ value: String(v.id), label: labelVuelo(v.id) }))}
           />
-          <FormSelect
-            label="Pasajero"
-            value={form.pasajero}
-            onChange={(e) => setForm((f) => ({ ...f, pasajero: e.target.value }))}
-            placeholder="Selecciona un pasajero"
-            options={pasajerosDisponibles.map((p) => ({
-              value: String(p.id),
-              label: labelPasajero(p.id),
-            }))}
-          />
-          <FormInput
-            label="Asiento"
-            value={form.asiento}
-            onChange={(e) => setForm((f) => ({ ...f, asiento: e.target.value }))}
-            placeholder="Ej: 12A"
-            maxLength={4}
-          />
+          
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormSelect
+              label="Pasajero"
+              value={form.pasajero}
+              onChange={(e) => setForm((f) => ({ ...f, pasajero: e.target.value }))}
+              placeholder="Selecciona un pasajero"
+              options={pasajerosDisponibles.map((p) => ({
+                value: String(p.id),
+                label: labelPasajero(p.id),
+              }))}
+            />
+            <FormInput
+              label="Asiento"
+              value={form.asiento}
+              onChange={(e) => setForm((f) => ({ ...f, asiento: e.target.value }))}
+              placeholder="Ej: 12A"
+              maxLength={4}
+            />
+          </div>
+
           {isStaff && (
             <FormSelect
               label="Estado"
@@ -628,16 +632,25 @@ export function ReservasPage() {
           )}
 
           {formError && (
-            <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm text-primary-light">
+            <p className="rounded-xl border border-primary/45 bg-primary/10 px-4 py-2.5 text-xs text-primary-light animate-fade-in">
               {formError}
             </p>
           )}
 
-          <div className="mt-2 flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setModalAbierto(false)}>
+          <div className="mt-6 flex justify-end gap-3 border-t border-dark-border pt-4">
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={() => setModalAbierto(false)}
+              className="border border-primary/20 hover:bg-[#3d0b13]/25 px-5 py-2.5 rounded-xl text-xs font-bold"
+            >
               Cancelar
             </Button>
-            <Button type="submit" isLoading={guardando}>
+            <Button 
+              type="submit" 
+              isLoading={guardando}
+              className="bg-primary hover:bg-primary-dark text-white border-none px-5 py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-primary/20 hover:shadow-primary/35 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300"
+            >
               {editando ? 'Guardar cambios' : 'Crear reserva'}
             </Button>
           </div>
