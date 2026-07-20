@@ -62,6 +62,7 @@ export function AppRouter() {
             <Route path="/aeropuertos" element={<AeropuertosPage />} />
             <Route path="/aeronaves" element={<AeronavesPage />} />
             <Route path="/servicios" element={<ServiciosPage />} />
+            <Route path="/tarifas" element={<TarifasPage />} />
 
             {/* Finanzas */}
             <Route path="/facturas" element={<FacturasPage />} />
@@ -76,7 +77,6 @@ export function AppRouter() {
               <Route path="/tripulacion" element={<TripulacionPage />} />
               <Route path="/aerolineas" element={<AerolineasPage />} />
               <Route path="/tipos-avion" element={<TiposAvionPage />} />
-              <Route path="/tarifas" element={<TarifasPage />} />
               <Route path="/paises" element={<PaisesPage />} />
               <Route path="/ciudades" element={<CiudadesPage />} />
               <Route path="/terminales" element={<TerminalesPage />} />

@@ -41,7 +41,7 @@ const SECCIONES: NavSeccion[] = [
       { to: '/tripulacion', label: 'Tripulación', soloStaff: true },
       { to: '/aerolineas', label: 'Aerolíneas', soloStaff: true },
       { to: '/tipos-avion', label: 'Tipos de avión', soloStaff: true },
-      { to: '/tarifas', label: 'Tarifas', soloStaff: true },
+      { to: '/tarifas', label: 'Tarifas' },
       { to: '/paises', label: 'Países', soloStaff: true },
       { to: '/ciudades', label: 'Ciudades', soloStaff: true },
       { to: '/terminales', label: 'Terminales', soloStaff: true },
