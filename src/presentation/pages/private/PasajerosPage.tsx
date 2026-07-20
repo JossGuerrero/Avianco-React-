@@ -225,45 +225,52 @@ export function PasajerosPage() {
             <Button onClick={abrirCrear} className="mt-4">Registrar primer viajero</Button>
           </div>
         ) : !isStaff ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {visibles.map((pasajero) => (
               <div 
                 key={pasajero.id} 
-                className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-black/85 to-[#3d0b13]/25 backdrop-blur-md p-6 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:border-primary/45 hover:shadow-2xl hover:shadow-primary/5"
+                className="relative overflow-hidden rounded-3xl border border-blue-500/20 bg-gradient-to-br from-black/85 to-[#0b2b3d]/15 backdrop-blur-md p-6 shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/40 hover:shadow-[0_8px_35px_rgba(59,130,246,0.15)] animate-scale-in"
               >
                 {/* Decoración superior derecha estilo chip */}
-                <div className="absolute right-6 top-6 flex h-8 w-12 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-                  <svg className="h-4 w-4 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <div className="absolute right-6 top-6 flex h-8 w-12 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <svg className="h-4.5 w-4.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 002 2h2.945M18 5.5a2.5 2.5 0 012.5 2.5v.5a2.5 2.5 0 01-2.5 2.5h-1.5a2.5 2.5 0 00-2.5 2.5v1.5a2.5 2.5 0 01-2.5 2.5H13" />
                   </svg>
                 </div>
 
+                {/* Silueta de Avión decorativa de fondo (Estilo Marca de Agua de Pasaporte) */}
+                <div className="absolute -bottom-6 -right-6 opacity-[0.03] text-blue-400 pointer-events-none transform -rotate-12">
+                  <svg className="h-32 w-32" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5L21 16z"/>
+                  </svg>
+                </div>
+
                 <div className="space-y-4">
-                  <div>
-                    <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Pasaporte de Viajero</span>
-                    <h3 className="text-xl font-bold text-white mt-0.5 truncate">{pasajero.nombre_completo || 'Sin nombre asignado'}</h3>
+                  <div className="text-left">
+                    <span className="text-[10px] font-bold tracking-widest text-blue-400 uppercase">Pasaporte de Viajero</span>
+                    <h3 className="text-lg font-black text-white mt-0.5 truncate">{pasajero.nombre_completo || 'Sin nombre asignado'}</h3>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 text-xs border-t border-dark-border/60 pt-4">
+                  <div className="grid grid-cols-2 gap-y-3.5 gap-x-2 text-xs border-t border-white/5 pt-4 text-left">
                     <div>
-                      <p className="text-gray-500 font-medium">Nro. Pasaporte</p>
+                      <p className="text-gray-500 font-bold tracking-wider uppercase text-[9px] font-mono">Nro. Pasaporte</p>
                       <p className="font-mono text-white mt-0.5 font-bold tracking-wider">{pasajero.numero_pasaporte}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 font-medium">Nacionalidad</p>
+                      <p className="text-gray-500 font-bold tracking-wider uppercase text-[9px] font-mono">Nacionalidad</p>
                       <p className="text-white mt-0.5 font-semibold">{pasajero.nacionalidad}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 font-medium">Nacimiento</p>
+                      <p className="text-gray-500 font-bold tracking-wider uppercase text-[9px] font-mono">Nacimiento</p>
                       <p className="text-white mt-0.5 font-semibold">{formatFechaCorta(pasajero.fecha_nacimiento)}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500 font-medium">Teléfono</p>
+                      <p className="text-gray-500 font-bold tracking-wider uppercase text-[9px] font-mono">Teléfono</p>
                       <p className="text-white mt-0.5 font-semibold truncate">{pasajero.telefono || '—'}</p>
                     </div>
                   </div>
 
-                  <div className="flex justify-end gap-2 border-t border-dark-border/60 pt-4 mt-2">
+                  <div className="flex justify-end gap-2 border-t border-white/5 pt-4 mt-2">
                     <Button 
                       variant="secondary" 
                       onClick={() => abrirEditar(pasajero)}
