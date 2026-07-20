@@ -66,6 +66,7 @@ export function AppRouter() {
             {/* Finanzas */}
             <Route path="/facturas" element={<FacturasPage />} />
             <Route path="/pagos" element={<PagosPage />} />
+            <Route path="/metodos-pago" element={<MetodosPagoPage />} />
 
             {/* Mi cuenta */}
             <Route path="/perfil" element={<PerfilPage />} />
@@ -81,7 +82,6 @@ export function AppRouter() {
               <Route path="/ciudades" element={<CiudadesPage />} />
               <Route path="/terminales" element={<TerminalesPage />} />
               <Route path="/puertas" element={<PuertasPage />} />
-              <Route path="/metodos-pago" element={<MetodosPagoPage />} />
               <Route path="/escalas" element={<EscalasPage />} />
               <Route path="/asignaciones" element={<AsignacionesPage />} />
               <Route path="/estados-vuelo" element={<EstadosVueloPage />} />
