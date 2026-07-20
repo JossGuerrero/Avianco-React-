@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { ClaseTarifa } from '../../../domain/enums/ClaseTarifa';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { labelVuelo } from '../../utils/labels';
-import { getErrorMessage, formatFecha } from '../../utils/formatters';
+import { getErrorMessage } from '../../utils/formatters';
 import { SeatMapSelector } from '../../components/SeatMapSelector';
+import { Modal } from '../../components/Modal';
+import { FormInput } from '../../components/FormInput';
+import { FormSelect } from '../../components/FormSelect';
 import type { Asiento } from '../../../domain/entities/Asiento';
 import type { Vuelo } from '../../../domain/entities/Vuelo';
 
@@ -22,6 +25,19 @@ export function AsientosPage() {
   const [vueloSelId, setVueloSelId] = useState<string>('');
   const [busqueda, setBusqueda] = useState<string>('');
   const [asientoSelCodigo, setAsientoSelCodigo] = useState<string>('');
+
+  // Estados para CRUD
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [editando, setEditando] = useState<Asiento | null>(null);
+  const [valores, setValores] = useState({
+    codigo: '',
+    fila: '',
+    columna: '',
+    clase: ClaseTarifa.Economica as ClaseTarifa,
+    disponible: true,
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -59,7 +75,7 @@ export function AsientosPage() {
   // Asiento seleccionado visualmente
   const seatSelected = useMemo(() => {
     if (!asientoSelCodigo) return null;
-    return asientosDelVuelo.find((a) => a.codigo === asientoSelCodigo) || null;
+    return asientosDelVuelo.find((a) => a.codigo.toUpperCase() === asientoSelCodigo.toUpperCase()) || null;
   }, [asientosDelVuelo, asientoSelCodigo]);
 
   // Asientos filtrados por búsqueda
@@ -90,6 +106,79 @@ export function AsientosPage() {
       capacidadAvion,
     };
   }, [asientosDelVuelo, vueloSeleccionado]);
+
+  // Funciones CRUD
+  function abrirCrear() {
+    setEditando(null);
+    setValores({
+      codigo: '',
+      fila: '',
+      columna: '',
+      clase: ClaseTarifa.Economica,
+      disponible: true,
+    });
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  function abrirEditar(asiento: Asiento) {
+    setEditando(asiento);
+    setValores({
+      codigo: asiento.codigo,
+      fila: String(asiento.fila),
+      columna: asiento.columna,
+      clase: asiento.clase,
+      disponible: asiento.disponible,
+    });
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  async function eliminar(asiento: Asiento) {
+    if (!window.confirm(`¿Eliminar el asiento ${asiento.codigo}?`)) return;
+    try {
+      await useCaseFactory.asientos.remove(asiento.id);
+      setAsientoSelCodigo('');
+      await cargar();
+    } catch (e) {
+      setError(getErrorMessage(e, 'No se pudo eliminar el asiento'));
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const filaNum = Number(valores.fila);
+    if (!valores.codigo.trim() || !valores.columna.trim() || Number.isNaN(filaNum) || filaNum <= 0) {
+      setFormError('Código, columna y fila (número positivo) son obligatorios');
+      return;
+    }
+    setGuardando(true);
+    setFormError(null);
+    try {
+      const input = {
+        vuelo: Number(vueloSelId),
+        codigo: valores.codigo.trim().toUpperCase(),
+        clase: valores.clase,
+        fila: filaNum,
+        columna: valores.columna.trim().toUpperCase(),
+        disponible: valores.disponible,
+      };
+      if (editando) {
+        await useCaseFactory.asientos.update(editando.id, input);
+      } else {
+        await useCaseFactory.asientos.create(input);
+      }
+      setModalAbierto(false);
+      await cargar();
+      if (editando && asientoSelCodigo.toUpperCase() === editando.codigo.toUpperCase()) {
+        setAsientoSelCodigo(input.codigo);
+      }
+    } catch (e) {
+      setFormError(getErrorMessage(e, 'No se pudo guardar el asiento'));
+    } finally {
+      setGuardando(false);
+    }
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -252,7 +341,7 @@ export function AsientosPage() {
             </div>
 
             {/* Columna Derecha: Detalle de Selección o Listado de Asientos */}
-            <div className="flex-1 w-full">
+            <div className="flex-1 w-full animate-fade-in">
               {seatSelected ? (
                 /* Detalle de Asiento Seleccionado */
                 <div className="bg-dark-surface/30 border border-primary/20 rounded-3xl p-6 shadow-xl relative overflow-hidden animate-scale-in">
@@ -296,10 +385,10 @@ export function AsientosPage() {
                         <div className="bg-dark-surface/50 border border-dark-border p-4 rounded-2xl flex flex-col justify-center h-[90px]">
                           <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider block mb-2">Acciones Administrativas</span>
                           <div className="flex gap-3">
-                            <Button size="small" variant="secondary" className="flex-1">
+                            <Button size="small" variant="secondary" className="flex-1" onClick={() => abrirEditar(seatSelected)}>
                               Editar Asiento
                             </Button>
-                            <Button size="small" variant="danger" className="flex-1">
+                            <Button size="small" variant="danger" className="flex-1" onClick={() => eliminar(seatSelected)}>
                               Eliminar
                             </Button>
                           </div>
@@ -325,7 +414,7 @@ export function AsientosPage() {
                         className="w-full sm:w-60 bg-dark border border-dark-border rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
                       />
                       {isStaff && (
-                        <Button size="small" className="whitespace-nowrap">
+                        <Button size="small" className="whitespace-nowrap" onClick={abrirCrear}>
                           Agregar Asiento
                         </Button>
                       )}
@@ -389,6 +478,80 @@ export function AsientosPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de CRUD para Administradores */}
+      <Modal
+        open={modalAbierto}
+        title={editando ? `Editar Asiento: ${editando.codigo}` : 'Agregar Nuevo Asiento'}
+        onClose={() => setModalAbierto(false)}
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {formError && (
+            <div className="p-3 text-xs rounded-xl bg-primary/10 border border-primary/20 text-primary-light">
+              {formError}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormInput
+              label="Código del Asiento"
+              required
+              value={valores.codigo}
+              onChange={(e) => setValores((prev) => ({ ...prev, codigo: e.target.value }))}
+              placeholder="Ej: 12A"
+              maxLength={4}
+            />
+            <FormSelect
+              label="Clase"
+              required
+              value={valores.clase}
+              onChange={(e) => setValores((prev) => ({ ...prev, clase: e.target.value as ClaseTarifa }))}
+              options={Object.values(ClaseTarifa).map((c) => ({ value: c, label: c }))}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormInput
+              label="Fila (Número)"
+              type="number"
+              required
+              value={valores.fila}
+              onChange={(prev) => setValores((p) => ({ ...p, fila: prev.target.value }))}
+              placeholder="Ej: 12"
+            />
+            <FormInput
+              label="Columna (Letra)"
+              required
+              value={valores.columna}
+              onChange={(prev) => setValores((p) => ({ ...p, columna: prev.target.value }))}
+              placeholder="Ej: A"
+              maxLength={2}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              id="disponible-check"
+              type="checkbox"
+              checked={valores.disponible}
+              onChange={(e) => setValores((prev) => ({ ...prev, disponible: e.target.checked }))}
+              className="h-4.5 w-4.5 rounded border-dark-border bg-dark text-primary focus:ring-primary focus:ring-opacity-25"
+            />
+            <label htmlFor="disponible-check" className="text-xs font-semibold text-gray-300 select-none cursor-pointer">
+              Asiento disponible para reservas
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-dark-border">
+            <Button variant="secondary" type="button" onClick={() => setModalAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={guardando}>
+              {guardando ? 'Guardando...' : 'Guardar Asiento'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
