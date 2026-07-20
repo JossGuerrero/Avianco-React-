@@ -1,14 +1,35 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Pago } from '../../../domain/entities/Pago';
 import type { MetodoPago } from '../../../domain/entities/MetodoPago';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
+import type { Vuelo } from '../../../domain/entities/Vuelo';
 import { EstadoPago } from '../../../domain/enums/EstadoPago';
+import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
+import { Modal } from '../../components/Modal';
+import { FormInput } from '../../components/FormInput';
+import { FormSelect } from '../../components/FormSelect';
 import { formatPrecio, getErrorMessage } from '../../utils/formatters';
+
+interface PagoForm {
+  reserva: string;
+  metodo_pago: string;
+  monto: string;
+  estado: EstadoPago;
+  referencia: string;
+}
+
+const FORM_VACIO: PagoForm = {
+  reserva: '',
+  metodo_pago: '',
+  monto: '',
+  estado: EstadoPago.Pendiente,
+  referencia: '',
+};
 
 export function PagosPage() {
   const { user, isStaff } = useAuthStore();
@@ -17,11 +38,19 @@ export function PagosPage() {
   const [metodos, setMetodos] = useState<MetodoPago[]>([]);
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [pasajeros, setPasajeros] = useState<Pasajero[]>([]);
+  const [vuelos, setVuelos] = useState<Vuelo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Filtros
   const [busqueda, setBusqueda] = useState<string>('');
+
+  // Estados para CRUD de Staff
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [editando, setEditando] = useState<Pago | null>(null);
+  const [form, setForm] = useState<PagoForm>(FORM_VACIO);
+  const [guardando, setGuardando] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Estados para la Pasarela de Pago (Checkout)
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -39,16 +68,18 @@ export function PagosPage() {
     setLoading(true);
     setError(null);
     try {
-      const [pagosData, metodosData, reservasData, pasajerosData] = await Promise.all([
+      const [pagosData, metodosData, reservasData, pasajerosData, vuelosData] = await Promise.all([
         useCaseFactory.pagos.getAll(),
         useCaseFactory.metodosPago.getAll(),
         useCaseFactory.reservas.getAll(),
         useCaseFactory.pasajeros.getAll(),
+        useCaseFactory.vuelos.getAll(),
       ]);
       setPagos(pagosData);
       setMetodos(metodosData);
       setReservas(reservasData);
       setPasajeros(pasajerosData);
+      setVuelos(vuelosData);
     } catch (e) {
       setError(getErrorMessage(e, 'No se pudieron cargar los pagos'));
     } finally {
@@ -63,6 +94,7 @@ export function PagosPage() {
   const metodosPorId = useMemo(() => new Map(metodos.map((m) => [m.id, m])), [metodos]);
   const reservasPorId = useMemo(() => new Map(reservas.map((r) => [r.id, r])), [reservas]);
   const pasajerosPorId = useMemo(() => new Map(pasajeros.map((p) => [p.id, p])), [pasajeros]);
+  const vuelosPorId = useMemo(() => new Map(vuelos.map((v) => [v.id, v])), [vuelos]);
 
   // Filtro de propiedad de datos para Clientes
   const misPasajerosIds = useMemo(() => {
@@ -149,6 +181,92 @@ export function PagosPage() {
     } catch (err) {
       alert(getErrorMessage(err, 'Ocurrió un error al registrar tu pago en el servidor'));
       setProcesandoCheckout(false);
+    }
+  }
+
+  // Lógica CRUD de Staff
+  function abrirCrear() {
+    setEditando(null);
+    setForm(FORM_VACIO);
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  function abrirEditar(pago: Pago) {
+    setEditando(pago);
+    setForm({
+      reserva: String(pago.reserva),
+      metodo_pago: String(pago.metodo_pago),
+      monto: String(pago.monto),
+      estado: pago.estado,
+      referencia: pago.referencia,
+    });
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  async function handleEliminar(pago: Pago) {
+    if (!window.confirm(`¿Eliminar el pago #${pago.id}?`)) return;
+    try {
+      await useCaseFactory.pagos.remove(pago.id);
+      await cargar();
+    } catch (err) {
+      setError(getErrorMessage(err, 'No se pudo eliminar el pago'));
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const monto = Number(form.monto);
+    
+    if (!form.reserva || !form.metodo_pago || Number.isNaN(monto) || monto <= 0) {
+      setFormError('La reserva, el método de pago y un monto válido son obligatorios');
+      return;
+    }
+    
+    const reservaId = Number(form.reserva);
+    const reservaSel = reservas.find((r) => r.id === reservaId);
+    if (reservaSel?.estado === EstadoReserva.Cancelada) {
+      setFormError('No se puede registrar un pago sobre una reserva cancelada');
+      return;
+    }
+
+    // Evita el doble cobro: una reserva con pago completado no admite otro.
+    const pagoPrevio = pagos.find(
+      (p) =>
+        p.reserva === reservaId &&
+        p.estado === EstadoPago.Completado &&
+        p.id !== editando?.id
+    );
+    if (pagoPrevio && form.estado === EstadoPago.Completado) {
+      setFormError(
+        `Esta reserva ya tiene el pago #${pagoPrevio.id} completado por ${formatPrecio(pagoPrevio.monto)}. Reembólsalo antes de registrar otro.`
+      );
+      return;
+    }
+
+    setGuardando(true);
+    setFormError(null);
+    try {
+      const input = {
+        reserva: reservaId,
+        metodo_pago: Number(form.metodo_pago),
+        monto,
+        estado: form.estado,
+        referencia: form.referencia.trim(),
+      };
+
+      if (editando) {
+        await useCaseFactory.pagos.update(editando.id, input);
+      } else {
+        await useCaseFactory.pagos.create(input);
+      }
+      setModalAbierto(false);
+      await cargar();
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'No se pudo guardar el pago'));
+    } finally {
+      setGuardando(false);
     }
   }
 
@@ -267,7 +385,7 @@ export function PagosPage() {
                     onChange={(e) => setBusqueda(e.target.value)}
                     className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
                   />
-                  <Button size="small">
+                  <Button size="small" onClick={abrirCrear}>
                     + Registrar Pago
                   </Button>
                 </div>
@@ -312,10 +430,16 @@ export function PagosPage() {
                               <Badge estado={p.estado} />
                             </td>
                             <td className="px-4 py-3 text-right space-x-2">
-                              <button className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1">
+                              <button
+                                onClick={() => abrirEditar(p)}
+                                className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1"
+                              >
                                 Editar
                               </button>
-                              <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                              <button
+                                onClick={() => handleEliminar(p)}
+                                className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1"
+                              >
                                 Eliminar
                               </button>
                             </td>
@@ -401,7 +525,92 @@ export function PagosPage() {
         </div>
       )}
 
-      {/* Modal de Checkout / Pasarela de Pago Simulada */}
+      {/* Modal de CRUD de Pago (Staff) */}
+      <Modal
+        open={modalAbierto}
+        title={editando ? `Editar pago #${editando.id}` : 'Nuevo pago'}
+        onClose={() => setModalAbierto(false)}
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
+          {formError && (
+            <p className="rounded-xl border border-primary/25 bg-primary/10 px-4 py-2 text-xs text-primary-light">
+              {formError}
+            </p>
+          )}
+
+          <FormSelect
+            label="Reserva Asociada"
+            required
+            disabled={!!editando}
+            value={form.reserva}
+            onChange={(e) => setForm((f) => ({ ...f, reserva: e.target.value }))}
+            placeholder="Selecciona una reserva"
+            options={reservas
+              .filter((r) => r.estado !== EstadoReserva.Cancelada)
+              .map((r) => {
+                const pas = pasajerosPorId.get(r.pasajero);
+                const nombrePas = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${r.pasajero}`;
+                return {
+                  value: String(r.id),
+                  label: `Reserva #${r.id} · ${nombrePas} (Asiento ${r.asiento})`,
+                };
+              })}
+          />
+          
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Método de pago"
+              required
+              value={form.metodo_pago}
+              onChange={(e) => setForm((f) => ({ ...f, metodo_pago: e.target.value }))}
+              placeholder="Selecciona un método"
+              options={metodos
+                .filter((m) => m.activo)
+                .map((m) => ({ value: String(m.id), label: `${m.nombre} (${m.tipo})` }))}
+            />
+            <FormInput
+              label="Monto ($)"
+              required
+              type="number"
+              min={0}
+              step="0.01"
+              value={form.monto}
+              onChange={(e) => setForm((f) => ({ ...f, monto: e.target.value }))}
+              placeholder="Ej: 297.50"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormSelect
+              label="Estado"
+              required
+              value={form.estado}
+              onChange={(e) => setForm((f) => ({ ...f, estado: e.target.value as EstadoPago }))}
+              options={Object.values(EstadoPago).map((estado) => ({
+                value: estado,
+                label: estado.charAt(0).toUpperCase() + estado.slice(1),
+              }))}
+            />
+            <FormInput
+              label="Referencia de Transacción"
+              value={form.referencia}
+              onChange={(e) => setForm((f) => ({ ...f, referencia: e.target.value }))}
+              placeholder="Ej: TRX-20260713-001"
+            />
+          </div>
+
+          <div className="mt-4 flex justify-end gap-3 border-t border-white/10 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setModalAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={guardando}>
+              {guardando ? 'Guardando...' : editando ? 'Guardar cambios' : 'Crear pago'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal de Checkout / Pasarela de Pago Simulada (Clientes) */}
       <Modal
         open={checkoutOpen}
         title="Pasarela de Pago Segura (Checkout)"
