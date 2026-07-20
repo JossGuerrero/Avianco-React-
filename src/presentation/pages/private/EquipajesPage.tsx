@@ -199,22 +199,30 @@ export function EquipajesPage() {
       <div className="absolute top-10 right-1/4 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Cabecera Principal */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+      {/* Cabecera Principal - Banner de Fondo Completo (Full-Bleed) */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/60 shadow-2xl h-80 sm:h-64 flex items-center p-6 sm:p-8">
+        {/* Foto de fondo completa */}
+        <div className="absolute inset-0 z-0 opacity-25 pointer-events-none blur-[1px]">
+          <img 
+            src="/luggage_banner_1784573835271.png" 
+            alt="Luggage Background Banner" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/90 to-transparent" />
+        </div>
         
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
-          <div>
-            <div className="flex items-center gap-2">
-              <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10 w-full text-left">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/30 px-3 py-1 text-xs font-semibold text-primary-light">
+              <svg className="h-4 w-4 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
-              <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Báscula y Pesaje</span>
+              Báscula y Pesaje
             </div>
-            <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
               Control de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Equipaje</span>
             </h1>
-            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-400 max-w-xl leading-relaxed">
               {isStaff 
                 ? 'Monitorea el peso total de carga de las aeronaves, gestiona equipaje especial y asigna maletas a las reservas de vuelo.'
                 : 'Consulta tus maletas registradas para bodega, cabina o carga especial, y verifica el peso y límites autorizados.'}
@@ -397,8 +405,15 @@ export function EquipajesPage() {
                       especial: 'bg-purple-500/10 border-purple-500/20 text-purple-400',
                     }[e.tipo.toLowerCase()] || 'bg-stone-500/10 border-stone-500/20 text-stone-400';
 
+                    // Estilo de tarjeta según el tipo
+                    const cardTheme = {
+                      cabina: 'border-emerald-500/20 hover:border-emerald-500/40 hover:shadow-[0_8px_35px_rgba(16,185,129,0.15)] bg-gradient-to-b from-black/80 to-emerald-950/20',
+                      bodega: 'border-blue-500/20 hover:border-blue-500/40 hover:shadow-[0_8px_35px_rgba(59,130,246,0.15)] bg-gradient-to-b from-black/80 to-blue-950/20',
+                      especial: 'border-purple-500/20 hover:border-purple-500/40 hover:shadow-[0_8px_35px_rgba(168,85,247,0.15)] bg-gradient-to-b from-black/80 to-purple-950/20',
+                    }[e.tipo.toLowerCase()] || 'border-white/10 hover:border-white/20 hover:shadow-2xl bg-gradient-to-b from-black/80 to-white/5';
+
                     return (
-                      <div key={e.id} className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-white/0 backdrop-blur-md shadow-2xl p-6 flex flex-col justify-between h-96 w-full animate-scale-in group hover:border-white/20 transition-all">
+                      <div key={e.id} className={`relative overflow-hidden rounded-3xl border backdrop-blur-md shadow-2xl p-6 flex flex-col justify-between h-96 w-full animate-scale-in group transition-all duration-300 hover:-translate-y-1 ${cardTheme}`}>
                         {/* Luggage Tag Punched Hole and Thread */}
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-4 bg-gradient-to-b from-white/30 to-transparent" />
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-[#1a1a1a] border border-white/15 shadow-inner flex items-center justify-center">
