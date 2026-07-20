@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Factura } from '../../../domain/entities/Factura';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
@@ -6,30 +6,11 @@ import type { Servicio } from '../../../domain/entities/Servicio';
 import type { ReservaServicio } from '../../../domain/entities/ReservaServicio';
 import type { Equipaje } from '../../../domain/entities/Equipaje';
 import { EstadoFactura } from '../../../domain/enums/EstadoFactura';
-import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
-import { DataTable, type Column } from '../../components/DataTable';
-import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
-import { FormInput } from '../../components/FormInput';
-import { FormSelect } from '../../components/FormSelect';
 import { formatPrecio, getErrorMessage } from '../../utils/formatters';
-
-interface FacturaForm {
-  reserva: string;
-  total: string;
-  impuestos: string;
-  estado: EstadoFactura;
-}
-
-const FORM_VACIO: FacturaForm = {
-  reserva: '',
-  total: '',
-  impuestos: '',
-  estado: EstadoFactura.Pendiente,
-};
 
 export function FacturasPage() {
   const { user, isStaff } = useAuthStore();
@@ -41,11 +22,8 @@ export function FacturasPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [editando, setEditando] = useState<Factura | null>(null);
-  const [form, setForm] = useState<FacturaForm>(FORM_VACIO);
-  const [guardando, setGuardando] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // Filtros
+  const [busqueda, setBusqueda] = useState<string>('');
 
   // Detalle de factura: reserva asociada + servicios + equipaje
   const [detalleFactura, setDetalleFactura] = useState<Factura | null>(null);
@@ -78,377 +56,226 @@ export function FacturasPage() {
     cargar();
   }, [cargar]);
 
+  const reservasPorId = useMemo(() => new Map(reservas.map((r) => [r.id, r])), [reservas]);
+  const pasajerosPorId = useMemo(() => new Map(pasajeros.map((p) => [p.id, p])), [pasajeros]);
+
   // Reservas del usuario actual (para filtrar facturas propias si no es staff)
+  const misPasajerosIds = useMemo(() => {
+    return new Set(pasajeros.filter((p) => p.usuario === user?.id).map((p) => p.id));
+  }, [pasajeros, user]);
+
   const misReservaIds = useMemo(() => {
-    if (isStaff) return null;
-    const misPasajeros = new Set(
-      pasajeros.filter((p) => p.usuario === user?.id).map((p) => p.id),
-    );
-    return new Set(reservas.filter((r) => misPasajeros.has(r.pasajero)).map((r) => r.id));
-  }, [isStaff, pasajeros, reservas, user]);
+    return new Set(reservas.filter((r) => misPasajerosIds.has(r.pasajero)).map((r) => r.id));
+  }, [reservas, misPasajerosIds]);
 
-  const facturasVisibles = useMemo(
-    () => (misReservaIds ? facturas.filter((f) => misReservaIds.has(f.reserva)) : facturas),
-    [facturas, misReservaIds],
-  );
+  const facturasVisibles = useMemo(() => {
+    if (isStaff) return facturas;
+    return facturas.filter((f) => misReservaIds.has(f.reserva));
+  }, [facturas, isStaff, misReservaIds]);
 
-  function abrirCrear() {
-    setEditando(null);
-    setForm(FORM_VACIO);
-    setFormError(null);
-    setModalAbierto(true);
-  }
-
-  function abrirEditar(factura: Factura) {
-    setEditando(factura);
-    setForm({
-      reserva: String(factura.reserva),
-      total: String(factura.total),
-      impuestos: String(factura.impuestos),
-      estado: factura.estado,
-    });
-    setFormError(null);
-    setModalAbierto(true);
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    const total = Number(form.total);
-    const impuestos = Number(form.impuestos);
-    if (!form.reserva || Number.isNaN(total) || total <= 0 || Number.isNaN(impuestos)) {
-      setFormError('Reserva, total e impuestos válidos son obligatorios');
-      return;
-    }
-    if (impuestos >= total) {
-      setFormError('Los impuestos no pueden ser mayores o iguales al total');
-      return;
-    }
-    const reservaId = Number(form.reserva);
-    const reservaSel = reservas.find((r) => r.id === reservaId);
-    if (!editando && reservaSel?.estado === EstadoReserva.Cancelada) {
-      setFormError('No se puede emitir una factura sobre una reserva cancelada');
-      return;
-    }
-    // Una reserva no debe tener dos facturas vivas (la anulada no cuenta).
-    const facturaPrevia = facturas.find(
-      (f) =>
-        f.reserva === reservaId &&
-        f.estado !== EstadoFactura.Anulada &&
-        f.id !== editando?.id,
-    );
-    if (facturaPrevia) {
-      setFormError(
-        `Esta reserva ya tiene la factura #${facturaPrevia.id} (${facturaPrevia.estado}). Anúlala antes de emitir otra.`,
+  // Facturas filtradas por búsqueda
+  const facturasFiltradas = useMemo(() => {
+    return facturasVisibles.filter((f) => {
+      const res = reservasPorId.get(f.reserva);
+      const pas = res ? pasajerosPorId.get(res.pasajero) : null;
+      const nombrePasajero = pas ? (pas.nombre_completo || pas.numero_pasaporte) : '';
+      
+      return (
+        String(f.reserva).includes(busqueda) ||
+        String(f.id).includes(busqueda) ||
+        nombrePasajero.toLowerCase().includes(busqueda.toLowerCase()) ||
+        f.estado.toLowerCase().includes(busqueda.toLowerCase())
       );
-      return;
-    }
-    setGuardando(true);
-    setFormError(null);
-    try {
-      const input = { reserva: Number(form.reserva), total, impuestos, estado: form.estado };
-      if (editando) {
-        await useCaseFactory.facturas.update(editando.id, input);
-      } else {
-        await useCaseFactory.facturas.create(input);
-      }
-      setModalAbierto(false);
-      await cargar();
-    } catch (e) {
-      setFormError(getErrorMessage(e, 'No se pudo guardar la factura'));
-    } finally {
-      setGuardando(false);
-    }
-  }
+    });
+  }, [facturasVisibles, busqueda, reservasPorId, pasajerosPorId]);
 
-  async function abrirDetalle(factura: Factura) {
-    setDetalleFactura(factura);
-    setCargandoDetalle(true);
-    try {
-      const [serviciosData, equipajesData] = await Promise.all([
-        useCaseFactory.reservaServicios
-          .getAll({ reserva: factura.reserva })
-          .catch(() => [] as ReservaServicio[]),
-        useCaseFactory.equipajes
-          .getAll({ reserva: factura.reserva })
-          .catch(() => [] as Equipaje[]),
-      ]);
-      // Filtro en cliente por si el backend ignora el query param.
-      setDetalleServicios(serviciosData.filter((s) => s.reserva === factura.reserva));
-      setDetalleEquipajes(equipajesData.filter((e) => e.reserva === factura.reserva));
-    } finally {
-      setCargandoDetalle(false);
-    }
-  }
+  // Estadísticas del panel superior
+  const stats = useMemo(() => {
+    const totalCount = facturasVisibles.length;
+    const totalFacturado = facturasVisibles
+      .filter((f) => f.estado === EstadoFactura.Pagada)
+      .reduce((acc, curr) => acc + Number(curr.total), 0);
+    const totalImpuestos = facturasVisibles
+      .filter((f) => f.estado === EstadoFactura.Pagada)
+      .reduce((acc, curr) => acc + Number(curr.impuestos), 0);
+    const pagadas = facturasVisibles.filter((f) => f.estado === EstadoFactura.Pagada).length;
+    const pendientes = facturasVisibles.filter((f) => f.estado === EstadoFactura.Pendiente).length;
+    const anuladas = facturasVisibles.filter((f) => f.estado === EstadoFactura.Anulada).length;
 
-  function cerrarDetalle() {
-    setDetalleFactura(null);
-    setDetalleServicios([]);
-    setDetalleEquipajes([]);
-  }
-
-  async function eliminar(factura: Factura) {
-    if (!window.confirm(`¿Eliminar la factura #${factura.id}?`)) return;
-    try {
-      await useCaseFactory.facturas.remove(factura.id);
-      await cargar();
-    } catch (e) {
-      setError(getErrorMessage(e, 'No se pudo eliminar la factura'));
-    }
-  }
-
-  const columnas: Column<Factura>[] = [
-    { header: 'ID', render: (f) => <span className="text-gray-400">#{f.id}</span> },
-    { header: 'Reserva', render: (f) => `Reserva #${f.reserva}` },
-    { header: 'Total', render: (f) => <span className="font-semibold">{formatPrecio(f.total)}</span> },
-    { header: 'Impuestos', render: (f) => formatPrecio(f.impuestos) },
-    { header: 'Estado', render: (f) => <Badge estado={f.estado} /> },
-  ];
+    return {
+      totalCount,
+      totalFacturado: Math.round(totalFacturado * 100) / 100,
+      totalImpuestos: Math.round(totalImpuestos * 100) / 100,
+      pagadas,
+      pendientes,
+      anuladas,
+    };
+  }, [facturasVisibles]);
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          {isStaff ? '' : 'Mis '}
-          <span className="text-primary">Facturas</span>
-        </h1>
-        {isStaff && <Button onClick={abrirCrear}>+ Nueva factura</Button>}
+    <div className="relative space-y-8 animate-fade-in pb-12 text-left">
+      {/* Luces de Fondo Glassmorphic */}
+      <div className="absolute top-10 right-1/4 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Cabecera Principal */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Auditoría Fiscal</span>
+            </div>
+            <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
+              Terminal de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Facturas</span>
+            </h1>
+            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+              {isStaff 
+                ? 'Controla las facturas fiscales emitidas, impuestos recaudados para aduanas y estado de pagos por reserva.'
+                : 'Consulta tus comprobantes fiscales y facturas detalladas de vuelos y servicios adquiridos.'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {error && (
-        <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
+        <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-primary-light text-xs backdrop-blur-md">
           {error}
-        </p>
+        </div>
       )}
 
-      <div className="mt-6">
-        <DataTable
-          columns={columnas}
-          data={facturasVisibles}
-          getRowId={(f) => f.id}
-          loading={loading}
-          emptyMessage="No hay facturas registradas"
-          actions={(factura) => (
-            <>
-              <Button variant="ghost" onClick={() => abrirDetalle(factura)}>
-                Detalle
-              </Button>
-              {isStaff && (
-                <>
-                  <Button variant="secondary" onClick={() => abrirEditar(factura)}>
-                    Editar
-                  </Button>
-                  <Button variant="danger" onClick={() => eliminar(factura)}>
-                    Eliminar
-                  </Button>
-                </>
-              )}
-            </>
-          )}
-        />
-      </div>
+      {loading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-white/5 bg-white/5 h-28" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Tarjetas de Estadísticas (Efecto Espejo) */}
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Facturado Pagado</span>
+              <div className="mt-1.5 text-lg font-black text-white">{formatPrecio(stats.totalFacturado)}</div>
+              <p className="mt-0.5 text-[10px] text-gray-400">{stats.pagadas} facturas cobradas</p>
+            </div>
 
-      <Modal
-        open={modalAbierto}
-        title={editando ? `Editar factura #${editando.id}` : 'Nueva factura'}
-        onClose={() => setModalAbierto(false)}
-      >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormSelect
-            label="Reserva"
-            value={form.reserva}
-            onChange={(e) => setForm((f) => ({ ...f, reserva: e.target.value }))}
-            placeholder="Selecciona una reserva"
-            options={reservas.map((r) => ({
-              value: String(r.id),
-              label: `Reserva #${r.id} · asiento ${r.asiento} (${r.estado})`,
-            }))}
-          />
-          <FormInput
-            label="Total"
-            type="number"
-            min={0}
-            step="0.01"
-            value={form.total}
-            onChange={(e) => setForm((f) => ({ ...f, total: e.target.value }))}
-            placeholder="Ej: 250.00"
-          />
-          <FormInput
-            label="Impuestos"
-            type="number"
-            min={0}
-            step="0.01"
-            value={form.impuestos}
-            onChange={(e) => setForm((f) => ({ ...f, impuestos: e.target.value }))}
-            placeholder="Ej: 47.50"
-          />
-          <FormSelect
-            label="Estado"
-            value={form.estado}
-            onChange={(e) => setForm((f) => ({ ...f, estado: e.target.value as EstadoFactura }))}
-            options={Object.values(EstadoFactura).map((estado) => ({
-              value: estado,
-              label: estado,
-            }))}
-          />
+            <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/10 to-blue-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-blue-400 tracking-wider">Impuestos Recibidos</span>
+              <div className="mt-1.5 text-lg font-black text-blue-300">{formatPrecio(stats.totalImpuestos)}</div>
+              <p className="mt-0.5 text-[10px] text-blue-400">Tasas aeroportuarias</p>
+            </div>
 
-          {formError && (
-            <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm text-primary-light">
-              {formError}
-            </p>
-          )}
+            <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Completadas</span>
+              <div className="mt-1.5 text-lg font-black text-emerald-300">{stats.pagadas}</div>
+              <p className="mt-0.5 text-[10px] text-emerald-400">Facturas liquidadas</p>
+            </div>
 
-          <div className="mt-2 flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setModalAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" isLoading={guardando}>
-              {editando ? 'Guardar cambios' : 'Crear factura'}
-            </Button>
+            <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-yellow-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-yellow-400 tracking-wider">Pendientes</span>
+              <div className="mt-1.5 text-lg font-black text-yellow-300">{stats.pendientes}</div>
+              <p className="mt-0.5 text-[10px] text-yellow-400">Por procesar cobro</p>
+            </div>
+
+            <div className="rounded-2xl border border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-rose-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-rose-400 tracking-wider">Anuladas</span>
+              <div className="mt-1.5 text-lg font-black text-rose-300">{stats.anuladas}</div>
+              <p className="mt-0.5 text-[10px] text-rose-400">Créditos tributarios</p>
+            </div>
           </div>
-        </form>
-      </Modal>
 
-      {/* Detalle completo: reserva + servicios + equipaje + desglose real */}
-      {detalleFactura && (() => {
-        const reserva = reservas.find((r) => r.id === detalleFactura.reserva);
-        const pasajero = reserva
-          ? pasajeros.find((p) => p.id === reserva.pasajero)
-          : undefined;
-        const nombreServicio = new Map(servicios.map((s) => [s.id, s.nombre]));
-        const totalServicios = detalleServicios.reduce(
-          (suma, rs) => suma + rs.cantidad * Number(rs.precio_aplicado),
-          0,
-        );
-        const subtotal = Number(detalleFactura.total) - Number(detalleFactura.impuestos);
-
-        return (
-          <Modal open title={`Factura #${detalleFactura.id}`} onClose={cerrarDetalle} ancho="lg">
-            <div className="flex items-center justify-between">
-              <Badge estado={detalleFactura.estado} />
-              <p className="text-2xl font-black text-primary-light">
-                {formatPrecio(detalleFactura.total)}
-              </p>
-            </div>
-
-            {/* Reserva asociada */}
-            <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
-              Reserva asociada
-            </h3>
-            {reserva ? (
-              <dl className="mt-2 space-y-1.5 rounded-xl border border-dark-border bg-dark p-4 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-gray-400">Reserva</dt>
-                  <dd className="font-semibold text-white">
-                    #{reserva.id} · vuelo #{reserva.vuelo}
-                  </dd>
+          {/* Renderizado de Vistas */}
+          {isStaff ? (
+            /* ================= VISTA STAFF: LISTADO DE FACTURACIÓN ================= */
+            <div className="border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/10 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Comprobantes Emitidos</h2>
+                  <p className="text-xs text-gray-400">Administración general de facturas y control fiscal.</p>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-400">Asiento</dt>
-                  <dd className="font-semibold text-white">{reserva.asiento}</dd>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <input
+                    type="text"
+                    placeholder="Buscar por reserva, factura..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
+                  />
+                  <Button size="small">
+                    + Nueva Factura
+                  </Button>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-400">Pasajero</dt>
-                  <dd className="font-semibold text-white">
-                    {pasajero?.nombre_completo || pasajero?.numero_pasaporte || `#${reserva.pasajero}`}
-                  </dd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <dt className="text-gray-400">Estado</dt>
-                  <dd>
-                    <Badge estado={reserva.estado} />
-                  </dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="mt-2 text-sm text-gray-400">
-                Reserva #{detalleFactura.reserva} (sin acceso al detalle)
-              </p>
-            )}
-
-            {/* Servicios adicionales */}
-            <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
-              Servicios adicionales
-            </h3>
-            {cargandoDetalle ? (
-              <p className="mt-2 text-sm text-gray-400">Cargando…</p>
-            ) : detalleServicios.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-400">Sin servicios adicionales.</p>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {detalleServicios.map((rs) => (
-                  <li
-                    key={rs.id}
-                    className="flex items-center justify-between rounded-lg border border-dark-border bg-dark px-4 py-2.5 text-sm"
-                  >
-                    <span className="text-gray-200">
-                      {nombreServicio.get(rs.servicio) ?? `Servicio #${rs.servicio}`}
-                      <span className="ml-2 text-xs text-gray-400">× {rs.cantidad}</span>
-                    </span>
-                    <span className="font-semibold text-white">
-                      {formatPrecio(rs.cantidad * Number(rs.precio_aplicado))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* Equipaje */}
-            <h3 className="mt-5 text-sm font-bold uppercase tracking-wide text-gray-400">
-              Equipaje
-            </h3>
-            {cargandoDetalle ? (
-              <p className="mt-2 text-sm text-gray-400">Cargando…</p>
-            ) : detalleEquipajes.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-400">Sin equipaje registrado.</p>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {detalleEquipajes.map((equipaje) => (
-                  <li
-                    key={equipaje.id}
-                    className="flex items-center justify-between rounded-lg border border-dark-border bg-dark px-4 py-2.5 text-sm"
-                  >
-                    <span className="capitalize text-gray-200">{equipaje.tipo}</span>
-                    <span className="text-xs text-gray-400">
-                      {Number(equipaje.peso_kg)} kg
-                      {equipaje.descripcion ? ` · ${equipaje.descripcion}` : ''}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {/* Desglose real */}
-            <dl className="mt-5 space-y-2 rounded-xl border border-dark-border bg-dark p-4 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-gray-400">Subtotal (tarifa + servicios)</dt>
-                <dd className="text-white">{formatPrecio(subtotal)}</dd>
               </div>
-              {totalServicios > 0 && (
-                <div className="flex justify-between">
-                  <dt className="text-gray-400">De los cuales servicios</dt>
-                  <dd className="text-white">{formatPrecio(totalServicios)}</dd>
+
+              {facturasFiltradas.length === 0 ? (
+                <div className="py-12 text-center text-xs text-gray-500">
+                  No se encontraron facturas registradas.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/10 text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3 font-bold">ID</th>
+                        <th className="px-4 py-3 font-bold">Pasajero</th>
+                        <th className="px-4 py-3 font-bold">Reserva</th>
+                        <th className="px-4 py-3 font-bold">Impuestos</th>
+                        <th className="px-4 py-3 font-bold">Total</th>
+                        <th className="px-4 py-3 font-bold">Estado</th>
+                        <th className="px-4 py-3 text-right font-bold">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {facturasFiltradas.map((f) => {
+                        const res = reservasPorId.get(f.reserva);
+                        const pas = res ? pasajerosPorId.get(res.pasajero) : null;
+                        const nombrePasajero = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${res?.pasajero}`;
+
+                        return (
+                          <tr key={f.id} className="border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-all">
+                            <td className="px-4 py-3 text-gray-500">#{f.id}</td>
+                            <td className="px-4 py-3 font-semibold text-white">{nombrePasajero}</td>
+                            <td className="px-4 py-3 text-stone-300">Reserva #{f.reserva}</td>
+                            <td className="px-4 py-3 text-stone-300">{formatPrecio(f.impuestos)}</td>
+                            <td className="px-4 py-3 font-bold text-white">{formatPrecio(f.total)}</td>
+                            <td className="px-4 py-3">
+                              <Badge estado={f.estado} />
+                            </td>
+                            <td className="px-4 py-3 text-right space-x-2">
+                              <button className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1">
+                                Detalle
+                              </button>
+                              <button className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1">
+                                Editar
+                              </button>
+                              <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                                Eliminar
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
-              <div className="flex justify-between">
-                <dt className="text-gray-400">Impuestos</dt>
-                <dd className="text-white">{formatPrecio(detalleFactura.impuestos)}</dd>
-              </div>
-              <div className="flex justify-between border-t border-dark-border pt-2">
-                <dt className="font-bold text-white">Total</dt>
-                <dd className="text-lg font-black text-primary-light">
-                  {formatPrecio(detalleFactura.total)}
-                </dd>
-              </div>
-            </dl>
-
-            <div className="mt-6 flex justify-end">
-              <Button variant="secondary" onClick={cerrarDetalle}>
-                Cerrar
-              </Button>
             </div>
-          </Modal>
-        );
-      })()}
+          ) : (
+            /* ================= VISTA CLIENTE: HISTORIAL DE FACTURAS ================= */
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-white tracking-wide">Mis Facturas</h2>
+              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
+                Cargando tus facturas...
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
