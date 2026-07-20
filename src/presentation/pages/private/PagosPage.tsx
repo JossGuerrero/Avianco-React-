@@ -1,35 +1,14 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Pago } from '../../../domain/entities/Pago';
 import type { MetodoPago } from '../../../domain/entities/MetodoPago';
 import type { Reserva } from '../../../domain/entities/Reserva';
 import type { Pasajero } from '../../../domain/entities/Pasajero';
 import { EstadoPago } from '../../../domain/enums/EstadoPago';
-import { EstadoReserva } from '../../../domain/enums/EstadoReserva';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
-import { DataTable, type Column } from '../../components/DataTable';
-import { Modal } from '../../components/Modal';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
-import { FormInput } from '../../components/FormInput';
-import { FormSelect } from '../../components/FormSelect';
 import { formatPrecio, getErrorMessage } from '../../utils/formatters';
-
-interface PagoForm {
-  reserva: string;
-  metodo_pago: string;
-  monto: string;
-  estado: EstadoPago;
-  referencia: string;
-}
-
-const FORM_VACIO: PagoForm = {
-  reserva: '',
-  metodo_pago: '',
-  monto: '',
-  estado: EstadoPago.Pendiente,
-  referencia: '',
-};
 
 export function PagosPage() {
   const { user, isStaff } = useAuthStore();
@@ -41,11 +20,8 @@ export function PagosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [modalAbierto, setModalAbierto] = useState(false);
-  const [editando, setEditando] = useState<Pago | null>(null);
-  const [form, setForm] = useState<PagoForm>(FORM_VACIO);
-  const [guardando, setGuardando] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  // Filtros
+  const [busqueda, setBusqueda] = useState<string>('');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -73,215 +49,227 @@ export function PagosPage() {
   }, [cargar]);
 
   const metodosPorId = useMemo(() => new Map(metodos.map((m) => [m.id, m])), [metodos]);
+  const reservasPorId = useMemo(() => new Map(reservas.map((r) => [r.id, r])), [reservas]);
+  const pasajerosPorId = useMemo(() => new Map(pasajeros.map((p) => [p.id, p])), [pasajeros]);
+
+  // Filtro de propiedad de datos para Clientes
+  const misPasajerosIds = useMemo(() => {
+    return new Set(pasajeros.filter((p) => p.usuario === user?.id).map((p) => p.id));
+  }, [pasajeros, user]);
 
   const misReservaIds = useMemo(() => {
-    if (isStaff) return null;
-    const misPasajeros = new Set(
-      pasajeros.filter((p) => p.usuario === user?.id).map((p) => p.id),
-    );
-    return new Set(reservas.filter((r) => misPasajeros.has(r.pasajero)).map((r) => r.id));
-  }, [isStaff, pasajeros, reservas, user]);
+    return new Set(reservas.filter((r) => misPasajerosIds.has(r.pasajero)).map((r) => r.id));
+  }, [reservas, misPasajerosIds]);
 
-  const pagosVisibles = useMemo(
-    () => (misReservaIds ? pagos.filter((p) => misReservaIds.has(p.reserva)) : pagos),
-    [pagos, misReservaIds],
-  );
+  const pagosVisibles = useMemo(() => {
+    if (isStaff) return pagos;
+    return pagos.filter((p) => misReservaIds.has(p.reserva));
+  }, [pagos, isStaff, misReservaIds]);
 
-  function abrirCrear() {
-    setEditando(null);
-    setForm(FORM_VACIO);
-    setFormError(null);
-    setModalAbierto(true);
-  }
-
-  function abrirEditar(pago: Pago) {
-    setEditando(pago);
-    setForm({
-      reserva: String(pago.reserva),
-      metodo_pago: String(pago.metodo_pago),
-      monto: String(pago.monto),
-      estado: pago.estado,
-      referencia: pago.referencia,
-    });
-    setFormError(null);
-    setModalAbierto(true);
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    const monto = Number(form.monto);
-    if (!form.reserva || !form.metodo_pago || Number.isNaN(monto) || monto <= 0) {
-      setFormError('Reserva, método de pago y un monto válido son obligatorios');
-      return;
-    }
-    const reservaId = Number(form.reserva);
-    const reservaSel = reservas.find((r) => r.id === reservaId);
-    if (reservaSel?.estado === EstadoReserva.Cancelada) {
-      setFormError('No se puede registrar un pago sobre una reserva cancelada');
-      return;
-    }
-    // Evita el doble cobro: una reserva con pago completado no admite otro.
-    const pagoPrevio = pagos.find(
-      (p) =>
-        p.reserva === reservaId &&
-        p.estado === EstadoPago.Completado &&
-        p.id !== editando?.id,
-    );
-    if (pagoPrevio && form.estado === EstadoPago.Completado) {
-      setFormError(
-        `Esta reserva ya tiene el pago #${pagoPrevio.id} completado por ${formatPrecio(pagoPrevio.monto)}. Reembólsalo antes de registrar otro.`,
+  // Pagos filtrados por búsqueda (código de reserva, método, referencia)
+  const pagosFiltrados = useMemo(() => {
+    return pagosVisibles.filter((p) => {
+      const res = reservasPorId.get(p.reserva);
+      const pas = res ? pasajerosPorId.get(res.pasajero) : null;
+      const nombrePasajero = pas ? (pas.nombre_completo || pas.numero_pasaporte) : '';
+      const metodo = metodosPorId.get(p.metodo_pago)?.nombre || '';
+      
+      return (
+        String(p.reserva).includes(busqueda) ||
+        nombrePasajero.toLowerCase().includes(busqueda.toLowerCase()) ||
+        metodo.toLowerCase().includes(busqueda.toLowerCase()) ||
+        p.referencia.toLowerCase().includes(busqueda.toLowerCase()) ||
+        p.estado.toLowerCase().includes(busqueda.toLowerCase())
       );
-      return;
-    }
-    setGuardando(true);
-    setFormError(null);
-    try {
-      const input = {
-        reserva: Number(form.reserva),
-        metodo_pago: Number(form.metodo_pago),
-        monto,
-        estado: form.estado,
-        referencia: form.referencia.trim(),
-      };
-      if (editando) {
-        await useCaseFactory.pagos.update(editando.id, input);
-      } else {
-        await useCaseFactory.pagos.create(input);
-      }
-      setModalAbierto(false);
-      await cargar();
-    } catch (e) {
-      setFormError(getErrorMessage(e, 'No se pudo guardar el pago'));
-    } finally {
-      setGuardando(false);
-    }
-  }
+    });
+  }, [pagosVisibles, busqueda, reservasPorId, pasajerosPorId, metodosPorId]);
 
-  async function eliminar(pago: Pago) {
-    if (!window.confirm(`¿Eliminar el pago #${pago.id}?`)) return;
-    try {
-      await useCaseFactory.pagos.remove(pago.id);
-      await cargar();
-    } catch (e) {
-      setError(getErrorMessage(e, 'No se pudo eliminar el pago'));
-    }
-  }
+  // Estadísticas del panel superior
+  const stats = useMemo(() => {
+    const totalCount = pagosVisibles.length;
+    const totalRecaudado = pagosVisibles
+      .filter((p) => p.estado === EstadoPago.Completado)
+      .reduce((acc, curr) => acc + Number(curr.monto), 0);
+    const pendientes = pagosVisibles.filter((p) => p.estado === EstadoPago.Pendiente).length;
+    const fallidos = pagosVisibles.filter((p) => p.estado === EstadoPago.Fallido).length;
+    const reembolsados = pagosVisibles.filter((p) => p.estado === EstadoPago.Reembolsado).length;
 
-  const columnas: Column<Pago>[] = [
-    { header: 'ID', render: (p) => <span className="text-gray-400">#{p.id}</span> },
-    { header: 'Reserva', render: (p) => `Reserva #${p.reserva}` },
-    { header: 'Método', render: (p) => metodosPorId.get(p.metodo_pago)?.nombre ?? `#${p.metodo_pago}` },
-    { header: 'Monto', render: (p) => <span className="font-semibold">{formatPrecio(p.monto)}</span> },
-    { header: 'Estado', render: (p) => <Badge estado={p.estado} /> },
-    { header: 'Referencia', render: (p) => <span className="font-mono text-xs">{p.referencia || '—'}</span> },
-  ];
+    return {
+      totalCount,
+      totalRecaudado,
+      pendientes,
+      fallidos,
+      reembolsados,
+    };
+  }, [pagosVisibles]);
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          {isStaff ? '' : 'Mis '}
-          <span className="text-primary">Pagos</span>
-        </h1>
-        {isStaff && <Button onClick={abrirCrear}>+ Nuevo pago</Button>}
+    <div className="relative space-y-8 animate-fade-in pb-12 text-left">
+      {/* Luces de Fondo Glassmorphic */}
+      <div className="absolute top-10 right-1/4 w-80 h-80 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Cabecera Principal */}
+      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-xl p-6 sm:p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
+        <div className="absolute -right-10 -top-10 h-36 w-36 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+        
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <svg className="h-5 w-5 text-primary-light" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 16v1M10 6H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2v-3a2 2 0 00-2-2V9a2 2 0 00-2-2h-3m-1 0H9" />
+              </svg>
+              <span className="text-[10px] font-bold tracking-widest text-primary-light uppercase">Servicios Financieros</span>
+            </div>
+            <h1 className="mt-1 text-2xl font-black sm:text-3xl text-white tracking-tight">
+              Terminal de <span className="bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent">Pagos</span>
+            </h1>
+            <p className="mt-2 text-xs text-gray-400 max-w-xl leading-relaxed">
+              {isStaff 
+                ? 'Monitorea las reservas pagadas, reembolsos emitidos, y verifica referencias bancarias de transacciones.'
+                : 'Consulta tus recibos de pago digitales y realiza el pago de tus reservas de vuelo activas.'}
+            </p>
+          </div>
+        </div>
       </div>
 
       {error && (
-        <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
+        <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-primary-light text-xs backdrop-blur-md">
           {error}
-        </p>
+        </div>
       )}
 
-      <div className="mt-6">
-        <DataTable
-          columns={columnas}
-          data={pagosVisibles}
-          getRowId={(p) => p.id}
-          loading={loading}
-          emptyMessage="No hay pagos registrados"
-          actions={
-            isStaff
-              ? (pago) => (
-                  <>
-                    <Button variant="secondary" onClick={() => abrirEditar(pago)}>
-                      Editar
-                    </Button>
-                    <Button variant="danger" onClick={() => eliminar(pago)}>
-                      Eliminar
-                    </Button>
-                  </>
-                )
-              : undefined
-          }
-        />
-      </div>
+      {loading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-white/5 bg-white/5 h-28" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {/* Tarjetas de Estadísticas (Efecto Espejo) */}
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md p-4 shadow-lg col-span-2 lg:col-span-1">
+              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Total Recaudado</span>
+              <div className="mt-1.5 text-xl font-black text-white">{formatPrecio(stats.totalRecaudado)}</div>
+              <p className="mt-0.5 text-[10px] text-gray-400">{stats.totalCount} transacciones</p>
+            </div>
 
-      <Modal
-        open={modalAbierto}
-        title={editando ? `Editar pago #${editando.id}` : 'Nuevo pago'}
-        onClose={() => setModalAbierto(false)}
-      >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <FormSelect
-            label="Reserva"
-            value={form.reserva}
-            onChange={(e) => setForm((f) => ({ ...f, reserva: e.target.value }))}
-            placeholder="Selecciona una reserva"
-            options={reservas.map((r) => ({
-              value: String(r.id),
-              label: `Reserva #${r.id} · asiento ${r.asiento} (${r.estado})`,
-            }))}
-          />
-          <FormSelect
-            label="Método de pago"
-            value={form.metodo_pago}
-            onChange={(e) => setForm((f) => ({ ...f, metodo_pago: e.target.value }))}
-            placeholder="Selecciona un método"
-            options={metodos
-              .filter((m) => m.activo)
-              .map((m) => ({ value: String(m.id), label: `${m.nombre} (${m.tipo})` }))}
-          />
-          <FormInput
-            label="Monto"
-            type="number"
-            min={0}
-            step="0.01"
-            value={form.monto}
-            onChange={(e) => setForm((f) => ({ ...f, monto: e.target.value }))}
-            placeholder="Ej: 297.50"
-          />
-          <FormSelect
-            label="Estado"
-            value={form.estado}
-            onChange={(e) => setForm((f) => ({ ...f, estado: e.target.value as EstadoPago }))}
-            options={Object.values(EstadoPago).map((estado) => ({
-              value: estado,
-              label: estado,
-            }))}
-          />
-          <FormInput
-            label="Referencia"
-            value={form.referencia}
-            onChange={(e) => setForm((f) => ({ ...f, referencia: e.target.value }))}
-            placeholder="Ej: TRX-20260713-001"
-          />
+            <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-emerald-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Completados</span>
+              <div className="mt-1.5 text-xl font-black text-emerald-300">
+                {pagosVisibles.filter((p) => p.estado === EstadoPago.Completado).length}
+              </div>
+              <p className="mt-0.5 text-[10px] text-emerald-400">Pagos validados</p>
+            </div>
 
-          {formError && (
-            <p className="rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm text-primary-light">
-              {formError}
-            </p>
-          )}
+            <div className="rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/10 to-yellow-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-yellow-400 tracking-wider">Pendientes</span>
+              <div className="mt-1.5 text-xl font-black text-yellow-300">{stats.pendientes}</div>
+              <p className="mt-0.5 text-[10px] text-yellow-400">Por procesar cobro</p>
+            </div>
 
-          <div className="mt-2 flex justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => setModalAbierto(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" isLoading={guardando}>
-              {editando ? 'Guardar cambios' : 'Crear pago'}
-            </Button>
+            <div className="rounded-2xl border border-rose-500/20 bg-gradient-to-br from-rose-500/10 to-rose-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-rose-400 tracking-wider">Fallidos</span>
+              <div className="mt-1.5 text-xl font-black text-rose-300">{stats.fallidos}</div>
+              <p className="mt-0.5 text-[10px] text-rose-400">Transacción rechazada</p>
+            </div>
+
+            <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-purple-500/0 backdrop-blur-md p-4 shadow-lg">
+              <span className="text-[10px] uppercase font-bold text-purple-400 tracking-wider">Reembolsados</span>
+              <div className="mt-1.5 text-xl font-black text-purple-300">{stats.reembolsados}</div>
+              <p className="mt-0.5 text-[10px] text-purple-400">Devoluciones de cargo</p>
+            </div>
           </div>
-        </form>
-      </Modal>
+
+          {/* Renderizado de Vistas */}
+          {isStaff ? (
+            /* ================= VISTA STAFF: LISTADO DE CONTROL FINANCIERO ================= */
+            <div className="border border-white/10 bg-gradient-to-br from-white/5 to-white/0 backdrop-blur-md rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/10 pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Transacciones Recibidas</h2>
+                  <p className="text-xs text-gray-400">Control de estados, referencias y montos cobrados.</p>
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <input
+                    type="text"
+                    placeholder="Buscar por reserva, referencia..."
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
+                  />
+                  <Button size="small">
+                    + Registrar Pago
+                  </Button>
+                </div>
+              </div>
+
+              {pagosFiltrados.length === 0 ? (
+                <div className="py-12 text-center text-xs text-gray-500">
+                  No se encontraron registros de transacciones.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-white/10 text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3 font-bold">ID</th>
+                        <th className="px-4 py-3 font-bold">Pasajero</th>
+                        <th className="px-4 py-3 font-bold">Reserva</th>
+                        <th className="px-4 py-3 font-bold">Método</th>
+                        <th className="px-4 py-3 font-bold">Monto</th>
+                        <th className="px-4 py-3 font-bold">Referencia</th>
+                        <th className="px-4 py-3 font-bold">Estado</th>
+                        <th className="px-4 py-3 text-right font-bold">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagosFiltrados.map((p) => {
+                        const res = reservasPorId.get(p.reserva);
+                        const pas = res ? pasajerosPorId.get(res.pasajero) : null;
+                        const metodo = metodosPorId.get(p.metodo_pago)?.nombre || `#${p.metodo_pago}`;
+
+                        const nombrePasajero = pas ? (pas.nombre_completo || pas.numero_pasaporte) : `Pasajero #${res?.pasajero}`;
+
+                        return (
+                          <tr key={p.id} className="border-b border-white/5 last:border-b-0 hover:bg-white/5 transition-all">
+                            <td className="px-4 py-3 text-gray-500">#{p.id}</td>
+                            <td className="px-4 py-3 font-semibold text-white">{nombrePasajero}</td>
+                            <td className="px-4 py-3 text-stone-300">Reserva #{p.reserva}</td>
+                            <td className="px-4 py-3 text-stone-300">{metodo}</td>
+                            <td className="px-4 py-3 font-semibold text-white">{formatPrecio(p.monto)}</td>
+                            <td className="px-4 py-3 font-mono text-stone-400">{p.referencia || '—'}</td>
+                            <td className="px-4 py-3">
+                              <Badge estado={p.estado} />
+                            </td>
+                            <td className="px-4 py-3 text-right space-x-2">
+                              <button className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1">
+                                Editar
+                              </button>
+                              <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                                Eliminar
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ================= VISTA CLIENTE: HISTORIAL DE PAGOS ================= */
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-white tracking-wide">Mis Transacciones</h2>
+              <div className="py-8 text-center text-xs text-gray-500 bg-white/5 border border-white/10 rounded-3xl">
+                Cargando tu historial de pagos...
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
