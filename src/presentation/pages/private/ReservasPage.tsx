@@ -337,17 +337,17 @@ export function ReservasPage() {
         style={{ backgroundImage: "url('/scenic_flight.png')" }}
       />
 
-      {/* Banner de Bienvenida con Imagen de Fondo (Estilo Slate Auto + Aerolínea) */}
+      {/* Banner de Bienvenida con Imagen de Fondo Completa (Full-Bleed) */}
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/60 shadow-2xl h-80 sm:h-64 flex items-center">
-        {/* Foto del avión de fondo a la derecha con degradado para lectura */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-45 sm:opacity-65"
-          style={{ 
-            backgroundImage: "url('/airplane_sunset.png')",
-          }}
-        />
-        {/* Degradado negro a la izquierda para garantizar legibilidad del texto */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent z-0" />
+        {/* Foto de fondo completa */}
+        <div className="absolute inset-0 z-0 opacity-25 pointer-events-none blur-[1px]">
+          <img 
+            src="/bookings_banner_1784574660026.png" 
+            alt="Bookings Background Banner" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black via-black/90 to-transparent" />
+        </div>
         
         {/* Contenido del Banner */}
         <div className="relative z-10 p-6 sm:p-10 flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-6">
