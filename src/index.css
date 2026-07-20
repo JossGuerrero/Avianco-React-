@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Paleta Avianco rojo-negro (consistente con presentation/theme/colors.ts) */
 @theme {
   --color-primary: #d32f2f;
   --color-primary-dark: #b71c1c;
@@ -9,10 +8,14 @@
   --color-dark-surface: #242424;
   --color-dark-border: #3a3a3a;
 
-  /* Animaciones sutiles */
-  --animate-fade-in: fade-in 0.25s ease-out;
+--animate-fade-in: fade-in 0.25s ease-out;
   --animate-scale-in: scale-in 0.2s ease-out;
   --animate-slide-in: slide-in 0.25s ease-out;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-fly-slow: fly-slow 28s linear infinite;
+  --animate-fly-slow-reverse: fly-slow-reverse 32s linear infinite;
+  --animate-route-dash: route-dash 3s linear infinite;
 
   @keyframes fade-in {
     from {
@@ -45,5 +48,88 @@
       opacity: 1;
       transform: none;
     }
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes fly-slow {
+    0% {
+      transform: translateX(-120%) translateY(0) rotate(8deg);
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    92% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(420%) translateY(-12px) rotate(8deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes fly-slow-reverse {
+    0% {
+      transform: translateX(120%) translateY(0) rotate(-6deg);
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    92% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(-380%) translateY(8px) rotate(-6deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes route-dash {
+    0% {
+      mask-position: 0% 0;
+    }
+    100% {
+      mask-position: 200% 0;
+    }
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply border border-white/10 bg-dark-surface/80 backdrop-blur-md;
+  }
+
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary-light to-primary bg-clip-text text-transparent;
+  }
+
+  .animate-route-dash {
+    mask-image: repeating-linear-gradient(
+      90deg,
+      white 0,
+      white 4px,
+      transparent 4px,
+      transparent 8px
+    );
+    mask-size: 200% 100%;
   }
 }

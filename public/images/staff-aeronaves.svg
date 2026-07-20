@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" fill="none">
+  <defs>
+    <linearGradient id="ac-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a2030"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#ac-bg)"/>
+  <ellipse cx="400" cy="250" rx="380" ry="35" fill="#2a2a2a"/>
+  <line x1="50" y1="250" x2="750" y2="250" stroke="#ef5350" stroke-opacity="0.2" stroke-width="2"/>
+  <g transform="translate(120 95)">
+    <path d="M0 80 L40 75 L45 20 L55 5 L65 20 L70 75 L320 70 L340 50 L360 70 L380 72 L360 85 L340 105 L70 100 L65 130 L55 145 L45 130 L40 100 Z" fill="#e8e8e8" fill-opacity="0.92"/>
+    <path d="M55 5 L65 20 L65 130 L55 145 Z" fill="#ccc" fill-opacity="0.4"/>
+    <rect x="80" y="78" width="12" height="14" fill="#d32f2f" opacity="0.85" rx="1"/>
+    <rect x="100" y="78" width="12" height="14" fill="#d32f2f" opacity="0.85" rx="1"/>
+    <rect x="120" y="78" width="12" height="14" fill="#d32f2f" opacity="0.85" rx="1"/>
+    <rect x="140" y="78" width="12" height="14" fill="#d32f2f" opacity="0.85" rx="1"/>
+    <rect x="160" y="78" width="12" height="14" fill="#d32f2f" opacity="0.85" rx="1"/>
+    <rect x="180" y="78" width="12" height="14" fill="#d32f2f" opacity="0.85" rx="1"/>
+    <path d="M320 70 L340 50 L340 105 L320 100 Z" fill="#d32f2f" fill-opacity="0.85"/>
+    <rect x="300" y="55" width="8" height="65" fill="#b71c1c"/>
+  </g>
+  <text x="560" y="270" fill="#ef5350" font-family="monospace" font-size="16" opacity="0.7">HK-4521 · A320</text>
+</svg>

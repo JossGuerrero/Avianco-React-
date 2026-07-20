@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" fill="none">
+  <defs>
+    <linearGradient id="ci-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1820"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#ci-bg)"/>
+  <rect x="120" y="70" width="200" height="180" rx="10" fill="#252525" stroke="#3a3a3a"/>
+  <rect x="480" y="70" width="200" height="180" rx="10" fill="#252525" stroke="#3a3a3a"/>
+  <circle cx="220" cy="130" r="30" fill="#d32f2f" fill-opacity="0.3"/>
+  <text x="220" y="200" text-anchor="middle" fill="#ef5350" font-family="sans-serif" font-size="18" font-weight="bold">Bogotá</text>
+  <text x="220" y="220" text-anchor="middle" fill="#888" font-family="monospace" font-size="11">BOG · Colombia</text>
+  <circle cx="580" cy="130" r="30" fill="#d32f2f" fill-opacity="0.3"/>
+  <text x="580" y="200" text-anchor="middle" fill="#ef5350" font-family="sans-serif" font-size="18" font-weight="bold">Medellín</text>
+  <text x="580" y="220" text-anchor="middle" fill="#888" font-family="monospace" font-size="11">MDE · Colombia</text>
+  <path d="M320 160 L480 160" stroke="#ef5350" stroke-width="2" stroke-dasharray="8 5"/>
+</svg>

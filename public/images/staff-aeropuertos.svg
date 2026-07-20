@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" fill="none">
+  <defs>
+    <linearGradient id="ap-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f1419"/>
+      <stop offset="50%" stop-color="#3a1212"/>
+      <stop offset="100%" stop-color="#1a1a1a"/>
+    </linearGradient>
+    <linearGradient id="ap-glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8e8e8" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#888" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="320" fill="url(#ap-bg)"/>
+  <rect x="0" y="230" width="800" height="90" fill="#2a2a2a"/>
+  <line x1="0" y1="268" x2="800" y2="268" stroke="#ef5350" stroke-opacity="0.35" stroke-width="2" stroke-dasharray="40 30"/>
+  <path d="M80 230 L160 90 L620 90 L700 230 Z" fill="url(#ap-glass)" stroke="#555" stroke-width="1"/>
+  <rect x="200" y="130" width="80" height="100" fill="#ef5350" fill-opacity="0.15" rx="2"/>
+  <rect x="320" y="130" width="80" height="100" fill="#ef5350" fill-opacity="0.15" rx="2"/>
+  <rect x="440" y="130" width="80" height="100" fill="#ef5350" fill-opacity="0.15" rx="2"/>
+  <rect x="560" y="130" width="80" height="100" fill="#ef5350" fill-opacity="0.15" rx="2"/>
+  <rect x="650" y="50" width="24" height="180" fill="#3a3a3a"/>
+  <rect x="635" y="35" width="54" height="22" rx="3" fill="#444"/>
+  <rect x="642" y="55" width="40" height="14" fill="#ef5350" fill-opacity="0.35"/>
+  <circle cx="662" cy="42" r="3" fill="#4caf50"/>
+  <text x="210" y="185" fill="#ef5350" font-family="monospace" font-size="22" font-weight="bold">BOG</text>
+  <text x="450" y="185" fill="#ef5350" font-family="monospace" font-size="22" font-weight="bold">MDE</text>
+  <g transform="translate(100 200)">
+    <path d="M0 18 L55 -2 L48 18 L65 22 L48 26 L55 46 L0 26 L14 22 Z" fill="#ef5350" fill-opacity="0.7"/>
+  </g>
+</svg>
