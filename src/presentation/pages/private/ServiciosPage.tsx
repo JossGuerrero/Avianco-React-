@@ -1,11 +1,28 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import type { Servicio } from '../../../domain/entities/Servicio';
 import { TipoServicio } from '../../../domain/enums/TipoServicio';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { Button } from '../../components/Button';
 import { Badge } from '../../components/Badge';
+import { Modal } from '../../components/Modal';
+import { FormInput } from '../../components/FormInput';
+import { FormSelect } from '../../components/FormSelect';
 import { formatPrecio, getErrorMessage } from '../../utils/formatters';
+
+interface ServicioForm {
+  nombre: string;
+  descripcion: string;
+  precio: string;
+  tipo: TipoServicio;
+}
+
+const FORM_VACIO: ServicioForm = {
+  nombre: '',
+  descripcion: '',
+  precio: '0.00',
+  tipo: TipoServicio.Comida,
+};
 
 export function ServiciosPage() {
   const { isStaff } = useAuthStore();
@@ -16,6 +33,13 @@ export function ServiciosPage() {
 
   // Filtros
   const [busqueda, setBusqueda] = useState<string>('');
+
+  // Estados para CRUD de Staff
+  const [modalAbierto, setModalAbierto] = useState(false);
+  const [editando, setEditando] = useState<Servicio | null>(null);
+  const [form, setForm] = useState<ServicioForm>(FORM_VACIO);
+  const [guardando, setGuardando] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -43,6 +67,83 @@ export function ServiciosPage() {
       );
     });
   }, [servicios, busqueda]);
+
+  // Lógica CRUD de Staff
+  function abrirCrear() {
+    setEditando(null);
+    setForm(FORM_VACIO);
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  function abrirEditar(servicio: Servicio) {
+    setEditando(servicio);
+    setForm({
+      nombre: servicio.nombre,
+      descripcion: servicio.descripcion || '',
+      precio: String(servicio.precio),
+      tipo: servicio.tipo,
+    });
+    setFormError(null);
+    setModalAbierto(true);
+  }
+
+  async function handleEliminar(servicio: Servicio) {
+    if (!window.confirm(`¿Eliminar definitivamente el servicio "${servicio.nombre}"?`)) return;
+    try {
+      await useCaseFactory.servicios.remove(servicio.id);
+      await cargar();
+    } catch (err) {
+      setError(getErrorMessage(err, 'No se pudo eliminar el servicio'));
+    }
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const precio = Number(form.precio);
+
+    if (!form.nombre.trim()) {
+      setFormError('El nombre del servicio es obligatorio');
+      return;
+    }
+
+    if (Number.isNaN(precio) || precio < 0) {
+      setFormError('El precio debe ser un número válido mayor o igual a 0');
+      return;
+    }
+
+    // Validar nombre único para evitar servicios duplicados
+    const nombreDuplicado = servicios.find(
+      (s) => s.nombre.toLowerCase().trim() === form.nombre.toLowerCase().trim() && s.id !== editando?.id
+    );
+    if (nombreDuplicado) {
+      setFormError(`Ya existe otro servicio registrado con el nombre "${form.nombre}"`);
+      return;
+    }
+
+    setGuardando(true);
+    setFormError(null);
+    try {
+      const input = {
+        nombre: form.nombre.trim(),
+        descripcion: form.descripcion.trim(),
+        precio,
+        tipo: form.tipo,
+      };
+
+      if (editando) {
+        await useCaseFactory.servicios.update(editando.id, input);
+      } else {
+        await useCaseFactory.servicios.create(input);
+      }
+      setModalAbierto(false);
+      await cargar();
+    } catch (err) {
+      setFormError(getErrorMessage(err, 'No se pudo registrar el servicio'));
+    } finally {
+      setGuardando(false);
+    }
+  }
 
   // Estadísticas
   const stats = useMemo(() => {
@@ -159,7 +260,7 @@ export function ServiciosPage() {
                     onChange={(e) => setBusqueda(e.target.value)}
                     className="w-full sm:w-64 bg-dark/70 border border-white/15 rounded-xl px-3.5 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-primary-light transition-all"
                   />
-                  <Button size="small">
+                  <Button size="small" onClick={abrirCrear}>
                     + Nuevo Servicio
                   </Button>
                 </div>
@@ -191,10 +292,16 @@ export function ServiciosPage() {
                           <td className="px-4 py-3 font-bold text-primary-light">{formatPrecio(s.precio)}</td>
                           <td className="px-4 py-3 text-stone-300 max-w-[200px] truncate">{s.descripcion || '—'}</td>
                           <td className="px-4 py-3 text-right space-x-2">
-                            <button className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1">
+                            <button
+                              onClick={() => abrirEditar(s)}
+                              className="text-gray-400 hover:text-white transition-all text-xs font-semibold px-2 py-1"
+                            >
                               Editar
                             </button>
-                            <button className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1">
+                            <button
+                              onClick={() => handleEliminar(s)}
+                              className="text-primary-light hover:text-primary transition-all text-xs font-semibold px-2 py-1"
+                            >
                               Eliminar
                             </button>
                           </td>
@@ -318,8 +425,70 @@ export function ServiciosPage() {
                 </div>
               )}
             </div>
+          )}
         </div>
       )}
+
+      {/* Modal de CRUD de Servicio (Staff) */}
+      <Modal
+        open={modalAbierto}
+        title={editando ? `Editar servicio: ${editando.nombre}` : 'Nuevo servicio adicional'}
+        onClose={() => setModalAbierto(false)}
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
+          {formError && (
+            <p className="rounded-xl border border-primary/25 bg-primary/10 px-4 py-2 text-xs text-primary-light">
+              {formError}
+            </p>
+          )}
+
+          <FormInput
+            label="Nombre del Servicio"
+            required
+            value={form.nombre}
+            onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+            placeholder="Ej: Plato Especial Vegetariano"
+          />
+
+          <FormSelect
+            label="Categoría / Tipo de Servicio"
+            required
+            value={form.tipo}
+            onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value as TipoServicio }))}
+            options={Object.values(TipoServicio).map((t) => ({
+              value: t,
+              label: t.charAt(0).toUpperCase() + t.slice(1),
+            }))}
+          />
+
+          <FormInput
+            label="Precio Base"
+            required
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.precio}
+            onChange={(e) => setForm((f) => ({ ...f, precio: e.target.value }))}
+            placeholder="Ej: 29.99"
+          />
+
+          <FormInput
+            label="Descripción del Servicio"
+            value={form.descripcion}
+            onChange={(e) => setForm((f) => ({ ...f, descripcion: e.target.value }))}
+            placeholder="Ej: Incluye plato de fondo caliente, postre y bebida a elección"
+          />
+
+          <div className="mt-4 flex justify-end gap-3 border-t border-white/10 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setModalAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={guardando}>
+              {guardando ? 'Guardando...' : editando ? 'Guardar cambios' : 'Crear servicio'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
