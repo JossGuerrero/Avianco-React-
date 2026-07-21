@@ -53,7 +53,7 @@ const SECCIONES: NavSeccion[] = [
     items: [
       { to: '/facturas', label: 'Facturas' },
       { to: '/pagos', label: 'Pagos' },
-      { to: '/metodos-pago', label: 'Métodos de pago', soloStaff: true },
+      { to: '/metodos-pago', label: 'Métodos de pago' },
       { to: '/reserva-servicios', label: 'Servicios por reserva' },
       { to: '/equipajes', label: 'Equipajes' },
     ],
