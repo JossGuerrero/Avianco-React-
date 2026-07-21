@@ -142,9 +142,8 @@ export function SeatMapSelector({
           })}
         </div>
       </div>
-    </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-400">
+      <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-400">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded border border-green-500/40 bg-green-500/10" />
           Disponible
