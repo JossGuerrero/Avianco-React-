@@ -130,7 +130,7 @@ export function ReservasPage() {
   function labelPasajero(id: number): string {
     const pasajero = pasajerosPorId.get(id);
     if (!pasajero) return `Pasajero #${id}`;
-    return pasajero.nombre_completo || pasajero.numero_pasaporte;
+    return localStorage.getItem(`pasajero_nombre_${pasajero.id}`) || pasajero.nombre_completo || pasajero.numero_pasaporte;
   }
 
   function abrirCrear() {

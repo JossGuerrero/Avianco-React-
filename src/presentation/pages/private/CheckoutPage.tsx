@@ -84,6 +84,7 @@ export function CheckoutPage() {
     nacionalidad: '',
     fecha_nacimiento: '',
     telefono: '',
+    nombre_completo: '',
   });
   const [errorPasajero, setErrorPasajero] = useState<string | null>(null);
   const [guardandoPasajero, setGuardandoPasajero] = useState(false);
@@ -209,20 +210,25 @@ export function CheckoutPage() {
   }
 
   async function crearPasajeroRapido() {
-    if (!nuevoPasajero.numero_pasaporte.trim() || !nuevoPasajero.nacionalidad || !nuevoPasajero.fecha_nacimiento) {
-      setErrorPasajero('Pasaporte, nacionalidad y fecha de nacimiento son obligatorios');
+    if (!nuevoPasajero.numero_pasaporte.trim() || !nuevoPasajero.nacionalidad || !nuevoPasajero.fecha_nacimiento || !nuevoPasajero.nombre_completo.trim()) {
+      setErrorPasajero('Nombre completo, pasaporte, nacionalidad y fecha de nacimiento son obligatorios');
       return;
     }
     setGuardandoPasajero(true);
     setErrorPasajero(null);
     try {
-      const creado = await useCaseFactory.pasajeros.create({
+      const input = {
         usuario: user?.id ?? 0,
         numero_pasaporte: nuevoPasajero.numero_pasaporte.trim(),
         nacionalidad: nuevoPasajero.nacionalidad,
         fecha_nacimiento: nuevoPasajero.fecha_nacimiento,
         telefono: nuevoPasajero.telefono.trim(),
-      });
+        nombre_completo: nuevoPasajero.nombre_completo.trim(),
+      };
+      const creado = await useCaseFactory.pasajeros.create(input);
+      if (creado && creado.id) {
+        localStorage.setItem(`pasajero_nombre_${creado.id}`, input.nombre_completo);
+      }
       setPasajeros((previos) => [...previos, creado]);
       setPasajeroId(String(creado.id));
       setCreandoPasajero(false);
@@ -551,7 +557,7 @@ export function CheckoutPage() {
                   placeholder="Selecciona un pasajero"
                   options={misPasajeros.map((p) => ({
                     value: String(p.id),
-                    label: p.nombre_completo || p.numero_pasaporte,
+                    label: localStorage.getItem(`pasajero_nombre_${p.id}`) || p.nombre_completo || p.numero_pasaporte,
                   }))}
                 />
                 <button
@@ -567,6 +573,15 @@ export function CheckoutPage() {
           {creandoPasajero && (
             <div className="space-y-3 rounded-xl border border-dark-border bg-dark p-4 animate-fade-in">
               <p className="text-sm font-bold text-white">Nuevo pasajero</p>
+              <FormInput
+                label="Nombre completo"
+                required
+                value={nuevoPasajero.nombre_completo}
+                onChange={(e) =>
+                  setNuevoPasajero((f) => ({ ...f, nombre_completo: e.target.value }))
+                }
+                placeholder="Ej: Juan Pérez"
+              />
               <FormInput
                 label="Número de pasaporte"
                 value={nuevoPasajero.numero_pasaporte}
@@ -639,7 +654,9 @@ export function CheckoutPage() {
           vuelo={vuelo}
           asiento={asientoSel}
           pasajeroNombre={
-            pasajeroSeleccionado?.nombre_completo || pasajeroSeleccionado?.numero_pasaporte || ''
+            pasajeroSeleccionado
+              ? (localStorage.getItem(`pasajero_nombre_${pasajeroSeleccionado.id}`) || pasajeroSeleccionado.nombre_completo || pasajeroSeleccionado.numero_pasaporte)
+              : ''
           }
           servicios={servicios}
           serviciosSel={serviciosSel}

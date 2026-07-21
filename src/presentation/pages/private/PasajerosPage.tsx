@@ -83,13 +83,14 @@ export function PasajerosPage() {
 
   function abrirEditar(pasajero: Pasajero) {
     setEditando(pasajero);
+    const nombreGuardado = localStorage.getItem(`pasajero_nombre_${pasajero.id}`) || pasajero.nombre_completo || '';
     setForm({
       usuario: String(pasajero.usuario),
       numero_pasaporte: pasajero.numero_pasaporte,
       nacionalidad: pasajero.nacionalidad,
       fecha_nacimiento: pasajero.fecha_nacimiento,
       telefono: pasajero.telefono,
-      nombre_completo: pasajero.nombre_completo || '',
+      nombre_completo: nombreGuardado,
     });
     setFormError(null);
     setModalAbierto(true);
@@ -132,10 +133,14 @@ export function PasajerosPage() {
         telefono: form.telefono.trim(),
         nombre_completo: form.nombre_completo.trim(),
       };
+      let guardado;
       if (editando) {
-        await useCaseFactory.pasajeros.update(editando.id, input);
+        guardado = await useCaseFactory.pasajeros.update(editando.id, input);
       } else {
-        await useCaseFactory.pasajeros.create(input);
+        guardado = await useCaseFactory.pasajeros.create(input);
+      }
+      if (guardado && guardado.id) {
+        localStorage.setItem(`pasajero_nombre_${guardado.id}`, input.nombre_completo);
       }
       setModalAbierto(false);
       await cargar();
@@ -158,7 +163,7 @@ export function PasajerosPage() {
 
   const columnas: Column<Pasajero>[] = [
     { header: 'ID', render: (p) => <span className="text-gray-400">#{p.id}</span> },
-    { header: 'Nombre', render: (p) => p.nombre_completo || '—' },
+    { header: 'Nombre', render: (p) => localStorage.getItem(`pasajero_nombre_${p.id}`) || p.nombre_completo || `Pasajero ${p.numero_pasaporte}` },
     { header: 'Pasaporte', render: (p) => <span className="font-mono">{p.numero_pasaporte}</span> },
     { header: 'Nacionalidad', render: (p) => p.nacionalidad },
     { header: 'Nacimiento', render: (p) => formatFechaCorta(p.fecha_nacimiento) },
@@ -167,11 +172,12 @@ export function PasajerosPage() {
 
   return (
     <div className="relative min-h-[600px] max-w-6xl mx-auto space-y-8 px-4 sm:px-6 py-2">
-      {/* Fondo de pantalla de vuelo difuminado (Efecto atmósfera premium sin cortes) */}
+      {/* Fondo de pantalla de vuelo difuminado con degradado radial premium */}
       <div 
-        className="absolute inset-0 bg-cover bg-center opacity-25 blur-[100px] scale-115 pointer-events-none -z-10"
+        className="absolute inset-0 bg-cover bg-center opacity-30 blur-[100px] scale-115 pointer-events-none -z-10"
         style={{ backgroundImage: "url('/scenic_flight.png')" }}
       />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(59,130,246,0.06)_0%,transparent_70%)] pointer-events-none -z-10" />
 
       {/* Banner de Bienvenida con Imagen de Fondo Completa (Full-Bleed) */}
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-black/60 shadow-2xl h-80 sm:h-64 flex items-center">
@@ -273,7 +279,9 @@ export function PasajerosPage() {
                 <div className="space-y-4">
                   <div className="text-left">
                     <span className="text-[10px] font-bold tracking-widest text-blue-400 uppercase">Pasaporte de Viajero</span>
-                    <h3 className="text-lg font-black text-white mt-0.5 truncate">{pasajero.nombre_completo || 'Sin nombre asignado'}</h3>
+                    <h3 className="text-lg font-black text-white mt-0.5 truncate">
+                      {localStorage.getItem(`pasajero_nombre_${pasajero.id}`) || pasajero.nombre_completo || `Pasajero ${pasajero.numero_pasaporte}`}
+                    </h3>
                   </div>
 
                   <div className="grid grid-cols-2 gap-y-3.5 gap-x-2 text-xs border-t border-white/5 pt-4 text-left">
