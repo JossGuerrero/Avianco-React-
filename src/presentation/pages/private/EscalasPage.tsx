@@ -5,12 +5,12 @@ import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
 import { labelAeropuerto, labelVuelo } from '../../utils/labels';
 import { formatFecha } from '../../utils/formatters';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function EscalasPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
   const vuelos = useLista(useCaseFactory.vuelos);
   const aeropuertos = useLista(useCaseFactory.aeropuertos);
-  // Copia de las escalas existentes para validar orden duplicado por vuelo.
   const escalas = useLista(useCaseFactory.escalas);
   const vuelosPorId = useMemo(() => new Map(vuelos.map((v) => [v.id, v])), [vuelos]);
   const aeropuertosPorId = useMemo(
@@ -20,7 +20,10 @@ export function EscalasPage() {
 
   return (
     <CrudPage
-      titulo="Escalas"
+      titulo="Escalas de vuelo"
+      destacado="Escalas"
+      descripcion="Configura paradas intermedias, orden de escala y ventanas de llegada/salida"
+      imagenHero={AVIATION_IMAGES.escalas}
       nombreEntidad="escala"
       useCases={useCaseFactory.escalas}
       puedeMutar={isStaff}
@@ -73,12 +76,10 @@ export function EscalasPage() {
 
         const llegada = new Date(String(v.llegada)).getTime();
         const salida = new Date(String(v.salida)).getTime();
-        // En una escala primero se llega y después se sale.
         if (!Number.isNaN(llegada) && !Number.isNaN(salida) && salida <= llegada) {
           return 'La salida de la escala debe ser posterior a su llegada';
         }
 
-        // La escala debe caer dentro de la ventana del vuelo.
         const vuelo = vuelosPorId.get(vueloId);
         if (vuelo) {
           const salidaVuelo = new Date(vuelo.fecha_salida).getTime();
@@ -97,7 +98,6 @@ export function EscalasPage() {
           }
         }
 
-        // Orden único dentro del mismo vuelo (sin contar la escala en edición).
         const duplicada = escalas.some(
           (e) => e.vuelo === vueloId && e.orden === orden && e.id !== editando?.id,
         );

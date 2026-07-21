@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Avianco">
+  <rect width="32" height="32" rx="8" fill="#D32F2F"/>
+  <path
+    fill="#FFFFFF"
+    d="M22.5 15.2 15.5 11V5.2c0-.9-.8-1.6-1.7-1.6s-1.7.7-1.7 1.6V11l-7 4.2v1.6l7-2v4.8l-1.7 1.3v1.3l3-0.9 3 0.9v-1.3L16.8 19v-4.8l7 2v-1z"
+  />
+</svg>

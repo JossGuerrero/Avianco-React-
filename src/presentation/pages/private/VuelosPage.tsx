@@ -18,6 +18,8 @@ import {
 } from '../../utils/filtrosVuelo';
 import { getErrorMessage } from '../../utils/formatters';
 import { useLista } from '../../utils/useLista';
+import { PageHero } from '../../components/PageHero';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 
 export function VuelosPage() {
   const navigate = useNavigate();
@@ -48,9 +50,6 @@ export function VuelosPage() {
       setLoading(true);
       setError(null);
       try {
-        // origen/destino van también como query params: si el backend los
-        // filtra (django-filter en VueloViewSet) la paginación es correcta;
-        // si los ignora, el filtro en cliente de abajo cubre la página actual.
         const resultado = await useCaseFactory.vuelos.getPage({
           page: pagina,
           ...(filtros.origen ? { origen: Number(filtros.origen) } : {}),
@@ -80,14 +79,12 @@ export function VuelosPage() {
 
   const vuelosFiltrados = useMemo(() => filtrarVuelos(vuelos, filtros), [vuelos, filtros]);
 
-  // Solo staff: reservas para el indicador de ocupación por vuelo.
   useEffect(() => {
     if (!isStaff) return;
     useCaseFactory.reservas
       .getAll()
       .then(setReservas)
       .catch(() => {
-        // Sin reservas no hay barra de ocupación; la página sigue funcionando.
       });
   }, [isStaff]);
 
@@ -100,7 +97,6 @@ export function VuelosPage() {
     return conteo;
   }, [reservas]);
 
-  // Staff cambió el estado desde el modal: se refleja en la lista sin recargar.
   function actualizarVuelo(actualizado: Vuelo) {
     setVuelos((previos) =>
       previos.map((v) => (v.id === actualizado.id ? { ...v, ...actualizado } : v)),
@@ -111,22 +107,33 @@ export function VuelosPage() {
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          Todos los <span className="text-primary">vuelos</span>
-        </h1>
-        {count > 0 && <p className="text-sm text-gray-400">{count} vuelos en total</p>}
-      </div>
+    <div className="space-y-8">
+      <PageHero
+        titulo="Planificador de vuelos"
+        destacado="vuelos"
+        subtitulo={
+          isStaff
+            ? 'Gestiona la programación, consulta ocupación y cambia estados operativos'
+            : 'Encuentra y reserva el vuelo perfecto para tu próximo destino'
+        }
+        imagen={AVIATION_IMAGES.vuelos}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.vuelos)}
+        accion={
+          count > 0 ? (
+            <span className="rounded-full border border-white/20 bg-black/40 px-4 py-2 text-sm font-semibold backdrop-blur-sm">
+              {count} vuelos en total
+            </span>
+          ) : undefined
+        }
+        compacto
+      />
 
-      <div className="mt-6">
-        <VueloSearchBar
+      <VueloSearchBar
           opcionesAeropuertos={opcionesAeropuertos}
           filtros={filtros}
           onChange={aplicarFiltros}
           cargandoOpciones={aeropuertos.length === 0 && loading}
-        />
-      </div>
+      />
 
       {error && (
         <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
@@ -136,8 +143,11 @@ export function VuelosPage() {
 
       {!loading && !error && vuelosFiltrados.length === 0 && (
         hayFiltrosActivos(filtros) ? (
-          <div className="mt-6 rounded-xl border border-dark-border bg-dark-surface p-6 text-center">
-            <p className="text-gray-300">
+          <div className="rounded-2xl border border-dark-border bg-dark-surface p-8 text-center">
+            <svg className="mx-auto h-12 w-12 text-gray-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <p className="mt-4 text-gray-300">
               No encontramos vuelos con esos filtros de origen, destino o fecha.
             </p>
             <button
@@ -152,7 +162,7 @@ export function VuelosPage() {
         )
       )}
 
-      <div className="mt-8 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
         {loading
           ? Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} />)
           : vuelosFiltrados.map((vuelo) => (

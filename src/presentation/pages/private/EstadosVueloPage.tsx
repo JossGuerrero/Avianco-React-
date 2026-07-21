@@ -6,8 +6,8 @@ import { useCaseFactory } from '../../../infrastructure/factories/repository.fac
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
 import { labelVuelo } from '../../utils/labels';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
-// Historial de estados: solo se agregan registros, no se editan.
 export function EstadosVueloPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
   const vuelos = useLista(useCaseFactory.vuelos);
@@ -16,8 +16,10 @@ export function EstadosVueloPage() {
   return (
     <CrudPage
       titulo="Estados de vuelo"
+      destacado="vuelo"
+      descripcion="Historial de cambios de estado — solo se agregan registros, no se editan"
+      imagenHero={AVIATION_IMAGES.estadosVuelo}
       nombreEntidad="registro de estado"
-      descripcion="Historial de cambios de estado (solo se agregan registros)"
       useCases={useCaseFactory.estadosVuelo}
       puedeMutar={isStaff}
       permitirEditar={false}

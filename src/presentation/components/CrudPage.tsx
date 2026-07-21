@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { CrudUseCases } from '../../application/use-cases/common/CrudUseCases';
 import { DataTable, type Column } from './DataTable';
 import { Modal } from './Modal';
 import { Button } from './Button';
 import { FormInput } from './FormInput';
 import { FormSelect, type SelectOption } from './FormSelect';
+import { PageHero } from './PageHero';
+import { fallbackDeImagen } from '../utils/aviationImages';
 import { getErrorMessage } from '../utils/formatters';
 
 export type FormValues = Record<string, string | boolean>;
@@ -27,14 +29,13 @@ interface CrudPageProps<T extends { id: number }, TInput> {
   useCases: CrudUseCases<T, TInput>;
   columns: Column<T>[];
   campos: CampoForm[];
-  // Convierte los valores del formulario al input de la API.
-  // Si devuelve un string, se muestra como error de validación.
-  // Recibe la fila en edición (o null al crear) para validar duplicados
-  // sin marcar como conflicto al propio registro.
   aInput: (values: FormValues, editando: T | null) => TInput | string;
   puedeMutar: boolean;
   permitirEditar?: boolean;
   descripcion?: string;
+  imagenHero?: string;
+  destacado?: string;
+  accionExtra?: ReactNode;
 }
 
 function crearFormVacio(campos: CampoForm[]): FormValues {
@@ -71,6 +72,9 @@ export function CrudPage<T extends { id: number }, TInput>({
   puedeMutar,
   permitirEditar = true,
   descripcion,
+  imagenHero,
+  destacado,
+  accionExtra,
 }: CrudPageProps<T, TInput>) {
   const [filas, setFilas] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,25 +159,49 @@ export function CrudPage<T extends { id: number }, TInput>({
     }
   }
 
+  const botonCrear = puedeMutar ? (
+    <Button onClick={abrirCrear}>+ Agregar {nombreEntidad}</Button>
+  ) : null;
+
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black">
-            <span className="text-primary">{titulo}</span>
-          </h1>
-          {descripcion && <p className="mt-1 text-sm text-gray-400">{descripcion}</p>}
+    <div className="space-y-6">
+      {imagenHero ? (
+        <PageHero
+          titulo={titulo}
+          destacado={destacado}
+          subtitulo={descripcion}
+          imagen={imagenHero}
+          imagenFallback={fallbackDeImagen(imagenHero)}
+          accion={
+            <div className="flex flex-wrap items-center gap-3">
+              {accionExtra}
+              {botonCrear}
+            </div>
+          }
+          compacto
+        />
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-black">
+              <span className="text-primary">{titulo}</span>
+            </h1>
+            {descripcion && <p className="mt-1 text-sm text-gray-400">{descripcion}</p>}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {accionExtra}
+            {botonCrear}
+          </div>
         </div>
-        {puedeMutar && <Button onClick={abrirCrear}>+ Agregar</Button>}
-      </div>
+      )}
 
       {error && (
-        <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
+        <p className="rounded-xl border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
           {error}
         </p>
       )}
 
-      <div className="mt-6">
+      <div className="animate-fade-in">
         <DataTable
           columns={columns}
           data={filas}

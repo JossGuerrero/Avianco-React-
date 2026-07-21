@@ -4,6 +4,7 @@ import { Badge } from '../../components/Badge';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function PuertasPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -12,7 +13,10 @@ export function PuertasPage() {
 
   return (
     <CrudPage
-      titulo="Puertas"
+      titulo="Puertas de embarque"
+      destacado="embarque"
+      descripcion="Gestión de puertas por terminal: códigos y estado activo/inactivo"
+      imagenHero={AVIATION_IMAGES.puertas}
       nombreEntidad="puerta"
       useCases={useCaseFactory.puertas}
       puedeMutar={isStaff}

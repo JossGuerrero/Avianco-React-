@@ -4,6 +4,7 @@ import { useCaseFactory } from '../../../infrastructure/factories/repository.fac
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
 import { labelAeropuerto } from '../../utils/labels';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function TerminalesPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -16,6 +17,9 @@ export function TerminalesPage() {
   return (
     <CrudPage
       titulo="Terminales"
+      destacado="Terminales"
+      descripcion="Infraestructura aeroportuaria: terminales por aeropuerto"
+      imagenHero={AVIATION_IMAGES.terminales}
       nombreEntidad="terminal"
       useCases={useCaseFactory.terminales}
       puedeMutar={isStaff}

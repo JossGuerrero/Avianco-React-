@@ -3,6 +3,7 @@ import { CrudPage } from '../../components/CrudPage';
 import { useCaseFactory } from '../../../infrastructure/factories/repository.factory';
 import { useAuthStore } from '../../store/authStore';
 import { useLista } from '../../utils/useLista';
+import { AVIATION_IMAGES } from '../../utils/aviationImages';
 
 export function CiudadesPage() {
   const isStaff = useAuthStore((state) => state.isStaff);
@@ -12,6 +13,9 @@ export function CiudadesPage() {
   return (
     <CrudPage
       titulo="Ciudades"
+      destacado="Ciudades"
+      descripcion="Destinos y ciudades de operación vinculadas a cada país"
+      imagenHero={AVIATION_IMAGES.ciudades}
       nombreEntidad="ciudad"
       useCases={useCaseFactory.ciudades}
       puedeMutar={isStaff}

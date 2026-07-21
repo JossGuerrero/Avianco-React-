@@ -8,6 +8,8 @@ import { Button } from '../../components/Button';
 import { FormInput } from '../../components/FormInput';
 import { FormSelect } from '../../components/FormSelect';
 import { getErrorMessage } from '../../utils/formatters';
+import { PageHero } from '../../components/PageHero';
+import { AVIATION_IMAGES, fallbackDeImagen } from '../../utils/aviationImages';
 import { PAISES } from '../../utils/paises';
 
 interface AeropuertoForm {
@@ -121,13 +123,16 @@ export function AeropuertosPage() {
   ];
 
   return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-black">
-          <span className="text-primary">Aeropuertos</span>
-        </h1>
-        {isStaff && <Button onClick={abrirCrear}>+ Nuevo aeropuerto</Button>}
-      </div>
+    <div className="space-y-6">
+      <PageHero
+        titulo="Inventario de aeropuertos"
+        destacado="aeropuertos"
+        subtitulo="Gestiona la red de aeropuertos: códigos IATA, ciudades y países de operación"
+        imagen={AVIATION_IMAGES.aeropuertos}
+        imagenFallback={fallbackDeImagen(AVIATION_IMAGES.aeropuertos)}
+        accion={isStaff ? <Button onClick={abrirCrear}>+ Nuevo aeropuerto</Button> : undefined}
+        compacto
+      />
 
       {error && (
         <p className="mt-6 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-light">
@@ -135,7 +140,7 @@ export function AeropuertosPage() {
         </p>
       )}
 
-      <div className="mt-6">
+      <div className="animate-fade-in">
         <DataTable
           columns={columnas}
           data={aeropuertos}
